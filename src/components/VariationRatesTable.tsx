@@ -56,7 +56,8 @@ export function VariationRatesTable({ variations, eventKeys, apiFlagsAvailable, 
               <tr key={v.id}>
                 <td>
                   <NumberField
-                    className="narrow"
+                    className="index-input"
+                    aria-label="Variation index"
                     min={0}
                     step={1}
                     value={v.index}
@@ -64,7 +65,14 @@ export function VariationRatesTable({ variations, eventKeys, apiFlagsAvailable, 
                   />
                 </td>
                 <td>
-                  <input value={v.label} placeholder="label" onChange={(e) => update(v.id, { label: e.target.value })} />
+                  <input
+                    className="label-input"
+                    aria-label="Variation label"
+                    title={v.label}
+                    value={v.label}
+                    placeholder="label"
+                    onChange={(e) => update(v.id, { label: e.target.value })}
+                  />
                 </td>
                 {eventKeys.map((k) => (
                   <td key={k}>

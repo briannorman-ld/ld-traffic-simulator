@@ -434,6 +434,30 @@ table.attrs td:last-child,
 table.rates td:last-child {
   width: 1%;
 }
+input.index-input {
+  width: 56px;
+}
+input.label-input {
+  width: 150px;
+}
+/* Keep Index + Label visible while the rate columns scroll sideways. */
+table.rates th:nth-child(-n + 2),
+table.rates td:nth-child(-n + 2) {
+  position: sticky;
+  z-index: 1;
+  background: var(--surface);
+}
+table.rates th:nth-child(1),
+table.rates td:nth-child(1) {
+  left: 0;
+  min-width: 68px;
+}
+table.rates th:nth-child(2),
+table.rates td:nth-child(2) {
+  left: 68px;
+  min-width: 162px;
+  box-shadow: 1px 0 0 var(--border);
+}
 table.stats td {
   border-bottom: 1px solid var(--border);
   padding: 8px 6px;
