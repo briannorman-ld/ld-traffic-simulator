@@ -57,7 +57,7 @@ function Row({ entry }: { entry: LogEntry }) {
 }
 
 export function EventLog() {
-  const entries = useSyncExternalStore(logStore.subscribe, logStore.getSnapshot);
+  const { entries, totals, totalAdded } = useSyncExternalStore(logStore.subscribe, logStore.getSnapshot);
   const [hidden, setHidden] = usePersistentState<LogCategory[]>('lts:logHidden', normalizeHidden);
   const visible = entries.filter((e) => !hidden.includes(e.category));
   const toggle = (c: LogCategory) => setHidden(hidden.includes(c) ? hidden.filter((x) => x !== c) : [...hidden, c]);
@@ -67,7 +67,11 @@ export function EventLog() {
       <div className="card-head">
         <h2>Event log</h2>
         <span className="muted">
-          {visible.length} shown · last {logStore.maxEntries} kept · clears on refresh
+          {visible.length} shown
+          {totalAdded > entries.length
+            ? ` · newest ${entries.length.toLocaleString()} of ${totalAdded.toLocaleString()} kept`
+            : ` · keeps the newest ${logStore.maxEntries.toLocaleString()}`}{' '}
+          · clears on refresh
         </span>
         <button type="button" className="link" onClick={() => logStore.clear()}>
           Clear
@@ -78,7 +82,9 @@ export function EventLog() {
           <label key={c.key} className={`filter ${hidden.includes(c.key) ? 'off' : ''}`}>
             <input type="checkbox" checked={!hidden.includes(c.key)} onChange={() => toggle(c.key)} />
             <span className={`badge ${c.key}`}>{c.label}</span>
-            <span className="muted small">{entries.filter((e) => e.category === c.key).length}</span>
+            <span className="muted small" title="Total since last clear, including entries no longer kept">
+              {(totals[c.key] ?? 0).toLocaleString()}
+            </span>
           </label>
         ))}
       </div>
