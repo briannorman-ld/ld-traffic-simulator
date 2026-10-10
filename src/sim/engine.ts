@@ -5,6 +5,9 @@ import { rollConversions } from './conversions';
 import { logStore } from './logStore';
 import { setLoggedFlagKey } from './networkLog';
 
+/** Runs without a "stop after" count end on their own after this long. */
+export const DEFAULT_MAX_RUN_MINUTES = 30;
+
 export interface RunnerCallbacks {
   onStatus(status: RunStatus, message?: string): void;
   onStats(stats: RunStats): void;
@@ -73,12 +76,18 @@ export class SimulationRunner {
       category: 'run',
       level: 'info',
       title: 'Run started',
-      summary: `${flagKey} · ${cfg.eventKeys.join(', ')} · every ${cfg.intervalMs} ms${cfg.maxContexts ? ` · stop after ${cfg.maxContexts}` : ''}`,
+      summary: `${flagKey} · ${cfg.eventKeys.join(', ')} · every ${cfg.intervalMs} ms · ${
+        cfg.maxContexts ? `stop after ${cfg.maxContexts}` : `stop after ${DEFAULT_MAX_RUN_MINUTES} min`
+      }`,
       details: { ...cfg, api: undefined },
     });
 
     let client: LDClient | null = null;
     let endMessage = 'Run stopped';
+    const deadline = cfg.maxContexts === null ? stats.startedAt + DEFAULT_MAX_RUN_MINUTES * 60_000 : null;
+    // Never wait past the deadline, even with a long interval.
+    const pause = () =>
+      this.sleep(deadline === null ? cfg.intervalMs : Math.min(cfg.intervalMs, Math.max(0, deadline - Date.now())));
     let endLevel: 'info' | 'error' = 'info';
 
     try {
@@ -100,6 +109,10 @@ export class SimulationRunner {
 
       let first = true;
       while (!this.stopRequested) {
+        if (deadline !== null && Date.now() >= deadline) {
+          endMessage = `Run stopped after ${DEFAULT_MAX_RUN_MINUTES} minutes (no "stop after" count set)`;
+          break;
+        }
         if (!first) {
           context = buildContext(cfg.contextKinds);
           const result = await client.identify(context, { sheddable: false });
@@ -112,7 +125,7 @@ export class SimulationRunner {
               title: `Identify ${result.status} for ${describeContext(context)}`,
               details: { context, result: result.status === 'error' ? String(result.error) : result },
             });
-            if (!this.stopRequested) await this.sleep(cfg.intervalMs);
+            if (!this.stopRequested) await pause();
             continue;
           }
         }
@@ -158,7 +171,7 @@ export class SimulationRunner {
           endMessage = `Run finished after ${stats.contexts} contexts`;
           break;
         }
-        if (!this.stopRequested) await this.sleep(cfg.intervalMs);
+        if (!this.stopRequested) await pause();
       }
     } catch (err) {
       endLevel = 'error';

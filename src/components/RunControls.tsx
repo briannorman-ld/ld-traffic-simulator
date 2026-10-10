@@ -1,3 +1,4 @@
+import { DEFAULT_MAX_RUN_MINUTES } from '../sim/engine';
 import type { RunStatus } from '../types';
 import { NumberField } from './NumberField';
 
@@ -45,7 +46,7 @@ export function RunControls(p: Props) {
             min={1}
             step={1}
             allowEmpty
-            placeholder="until stopped"
+            placeholder={`empty = ${DEFAULT_MAX_RUN_MINUTES} min limit`}
             disabled={busy}
             value={p.maxContexts}
             onChange={p.onMaxContexts}
@@ -63,7 +64,10 @@ export function RunControls(p: Props) {
           )}
         </div>
       </div>
-      <p className="hint">Visitors run one at a time: the next starts this long after the previous one's events are flushed.</p>
+      <p className="hint">
+        Visitors run one at a time: the next starts this long after the previous one's events are flushed.
+        {p.maxContexts === null && ` With no "stop after" count, the run stops on its own after ${DEFAULT_MAX_RUN_MINUTES} minutes.`}
+      </p>
       {p.statusMessage && <p className="error-text">{p.statusMessage}</p>}
       {!busy && p.errors.length > 0 && (
         <ul className="errors">
