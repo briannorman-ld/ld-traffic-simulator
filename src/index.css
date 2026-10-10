@@ -293,6 +293,46 @@ button.icon.danger {
   width: 240px;
 }
 
+/* --- Search select --- */
+.search-select {
+  position: relative;
+}
+.ss-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  color: var(--text);
+  font-size: 13px;
+}
+.ss-option {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.ss-option.active {
+  background: var(--surface-2);
+}
+.ss-option.selected {
+  font-weight: 600;
+}
+.ss-empty {
+  padding: 6px 10px;
+  color: var(--muted);
+}
+
 /* --- Pills, chips, badges --- */
 .pill {
   display: inline-block;

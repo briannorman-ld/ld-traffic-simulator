@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { LdCatalog } from '../hooks/useLdCatalog';
 import { encryptSecret } from '../secureStore';
 import type { ApiSettings } from '../types';
+import { SearchSelect } from './SearchSelect';
 
 interface Props {
   api: ApiSettings;
@@ -85,21 +86,16 @@ export function ApiSection({ api, catalog, onChange, onEnvironmentPicked }: Prop
         <>
           <div className="row">
             <label className="grow">
-              Project
-              <select
+              Project{projects.data ? ` (${projects.data.length})` : ''}
+              <SearchSelect
+                options={projects.data?.map((p) => ({ value: p.key, label: p.name, detail: p.key })) ?? []}
                 value={api.projectKey}
-                onChange={(e) => onChange({ ...api, projectKey: e.target.value, environmentKey: '' })}
-              >
-                <option value="">{projects.loading ? 'Loading…' : 'Select a project'}</option>
-                {projects.data?.map((p) => (
-                  <option key={p.key} value={p.key}>
-                    {p.name} ({p.key})
-                  </option>
-                ))}
-                {api.projectKey && !projects.data?.some((p) => p.key === api.projectKey) && (
-                  <option value={api.projectKey}>{api.projectKey}</option>
-                )}
-              </select>
+                placeholder={projects.loading ? 'Loading projects…' : 'Search projects by name or key'}
+                emptyText={projects.loading ? 'Loading…' : 'No projects'}
+                onChange={(projectKey) =>
+                  projectKey !== api.projectKey && onChange({ ...api, projectKey, environmentKey: '' })
+                }
+              />
             </label>
             <label className="grow">
               Environment

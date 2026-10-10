@@ -1,4 +1,5 @@
 import type { LdFlag } from '../api/ldApi';
+import { SearchSelect } from './SearchSelect';
 
 interface Props {
   clientSideId: string;
@@ -28,26 +29,28 @@ export function ConnectionSection({ clientSideId, flagKey, flags, onClientSideId
           />
         </label>
         <label className="grow">
-          Flag key
-          <input
-            spellCheck={false}
-            list="flag-options"
-            placeholder={flags ? 'Type or pick a flag' : 'my-experiment-flag'}
-            value={flagKey}
-            onChange={(e) => {
-              const v = e.target.value;
-              onFlagKey(v);
-              const match = flags?.find((f) => f.key === v.trim());
-              if (match) onFlagPicked(match);
-            }}
-          />
-          <datalist id="flag-options">
-            {flags?.map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.name}
-              </option>
-            ))}
-          </datalist>
+          Flag key{flags ? ` (${flags.length})` : ''}
+          {flags ? (
+            <SearchSelect
+              allowCustom
+              options={flags.map((f) => ({ value: f.key, label: f.key, detail: f.name }))}
+              value={flagKey}
+              placeholder="Search flags by key or name"
+              emptyText="No flags in this project"
+              onChange={(key) => {
+                onFlagKey(key);
+                const match = flags.find((f) => f.key === key);
+                if (match) onFlagPicked(match);
+              }}
+            />
+          ) : (
+            <input
+              spellCheck={false}
+              placeholder="my-experiment-flag"
+              value={flagKey}
+              onChange={(e) => onFlagKey(e.target.value)}
+            />
+          )}
         </label>
       </div>
       {known && <p className="hint">{known.name} · {known.variations.length} variations</p>}
