@@ -271,6 +271,9 @@ button.link {
   color: var(--accent);
   align-self: flex-start;
 }
+.push-right {
+  margin-left: auto;
+}
 button.icon {
   padding: 4px 9px;
   line-height: 1;

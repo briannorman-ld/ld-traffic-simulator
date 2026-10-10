@@ -1,3 +1,4 @@
+import { randomizeRates } from '../sim/randomRates';
 import type { VariationConfig } from '../types';
 import { uid } from '../uid';
 import { NumberField } from './NumberField';
@@ -21,6 +22,15 @@ export function VariationRatesTable({ variations, eventKeys, apiFlagsAvailable, 
       <div className="card-head">
         <h2>Variations &amp; conversion rates</h2>
         <span className="muted">% of visitors served each variation who fire each event</span>
+        <button
+          type="button"
+          className="link push-right"
+          disabled={eventKeys.length === 0 || variations.length === 0}
+          title="Random rates from 5–40% per event, with variations within 10% (relative) of each other"
+          onClick={() => onChange(randomizeRates(variations, eventKeys))}
+        >
+          Randomize rates
+        </button>
       </div>
       <p className="hint">
         Index is the variation's position in the flag (0 = first).
