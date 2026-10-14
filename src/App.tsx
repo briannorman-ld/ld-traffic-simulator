@@ -11,6 +11,7 @@ import { StatsPanel } from './components/StatsPanel';
 import { VariationRatesTable } from './components/VariationRatesTable';
 import { useLdCatalog } from './hooks/useLdCatalog';
 import { usePersistentState } from './hooks/usePersistentState';
+import { useTheme } from './hooks/useTheme';
 import { SimulationRunner } from './sim/engine';
 import {
   defaultConfig,
@@ -32,6 +33,7 @@ export default function App() {
   const [stats, setStats] = useState<RunStats | null>(null);
   const runnerRef = useRef<SimulationRunner | null>(null);
   const catalog = useLdCatalog(draft.api);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const running = status !== 'idle';
   const active = saved.find((s) => s.id === activeId) ?? null;
@@ -88,6 +90,15 @@ export default function App() {
           <h1>Experiment Traffic Simulator</h1>
           <span className="muted">LaunchDarkly · runs entirely in your browser</span>
         </div>
+        <button
+          type="button"
+          className="icon theme-toggle"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
         <SavedConfigsBar
           saved={saved}
           activeId={activeId}

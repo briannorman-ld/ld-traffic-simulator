@@ -19,8 +19,10 @@
   color-scheme: light;
 }
 
+/* Dark tokens. Applied when the user picks dark (data-theme="dark"), or when
+   the OS prefers dark and the user hasn't forced light. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0f1217;
     --surface: #171b22;
     --surface-2: #1e232c;
@@ -38,6 +40,24 @@
     --code-bg: #12161c;
     color-scheme: dark;
   }
+}
+:root[data-theme='dark'] {
+  --bg: #0f1217;
+  --surface: #171b22;
+  --surface-2: #1e232c;
+  --border: #2c333f;
+  --text: #e6e9ee;
+  --muted: #96a1b0;
+  --accent: #7086ff;
+  --accent-text: #0b0e14;
+  --ok: #5fd39a;
+  --ok-bg: #12321f;
+  --warn: #f0c060;
+  --warn-bg: #3a2c0c;
+  --danger: #ff7b7b;
+  --danger-bg: #3a1616;
+  --code-bg: #12161c;
+  color-scheme: dark;
 }
 
 * {
@@ -277,6 +297,10 @@ button.link {
 button.icon {
   padding: 4px 9px;
   line-height: 1;
+}
+.theme-toggle {
+  margin-left: auto;
+  font-size: 15px;
 }
 button.icon.danger {
   margin-bottom: 2px;
