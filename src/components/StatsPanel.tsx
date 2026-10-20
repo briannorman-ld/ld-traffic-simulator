@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
+import { avgOccurrences } from '../sim/conversions';
 import { ON_TARGET_PTS, targetGap } from '../sim/statsSummary';
 import type { FlagConfig, RunStats, VariationConfig, VariationStats } from '../types';
 import { variationStyle } from './variationColor';
@@ -102,7 +103,7 @@ function FlagTable({ buckets, eventKeys }: { buckets: Bucket[]; eventKeys: strin
             {eventKeys.map((k) => (
               <th key={k} className="num">
                 <code>{k}</code>
-                <div className="muted small">actual / target</div>
+                <div className="muted small">sent · actual / target</div>
               </th>
             ))}
           </tr>
@@ -121,12 +122,25 @@ function FlagTable({ buckets, eventKeys }: { buckets: Bucket[]; eventKeys: strin
               <td className="num">{b.stats.exposures}</td>
               {eventKeys.map((k) => {
                 const conv = b.stats.conversions[k] ?? 0;
+                const occ = b.stats.occurrences[k] ?? 0;
+                const rate = b.config ? (b.config.rates[k] ?? 0) : null;
+                const avg = avgOccurrences(b.config, k);
+                // Per-visitor numbers only add anything once an event can fire more than once.
+                const counted = occ !== conv || avg !== 1;
                 return (
                   <td key={k} className="num">
-                    <div>
-                      {conv} <span className="muted">({pct(conv, b.stats.exposures)})</span>
+                    <div title="Track calls sent, counting every occurrence">
+                      {occ.toLocaleString()} <span className="muted">sent</span>
                     </div>
-                    <div className="muted small">target {b.config ? `${b.config.rates[k] ?? 0}%` : '—'}</div>
+                    <div className="muted small" title="Visitors who fired it at least once, vs the configured rate">
+                      {pct(conv, b.stats.exposures)} fired · target {rate === null ? '—' : `${rate}%`}
+                    </div>
+                    {counted && (
+                      <div className="muted small" title="Track calls per exposed visitor, vs rate × average">
+                        {b.stats.exposures === 0 ? '—' : (occ / b.stats.exposures).toFixed(2)}/visitor · target{' '}
+                        {rate === null ? '—' : ((rate / 100) * avg).toFixed(2)}
+                      </div>
+                    )}
                   </td>
                 );
               })}

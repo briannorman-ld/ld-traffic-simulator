@@ -20,6 +20,8 @@ For each visitor, one at a time, using the official browser SDK (`@launchdarkly/
 2. `identify` → `variationDetail(flagKey)` for every configured flag.
 3. For each flag, roll each of its own event keys against the variation it served and `track()`
    on a hit. Every event belongs to exactly one flag, so flags never inflate each other's rates.
+   With "Configure occurrences", a hit tracks the event N times (N ≥ 1, geometric with the
+   configured average, capped at 100) for count metrics; the default average of 1 tracks it once.
 4. `flush()`, wait the configured ms, repeat until Stop or "stop after N".
 
 ## Things to know

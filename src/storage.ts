@@ -91,19 +91,26 @@ function normalizeKind(raw: unknown): ContextKindConfig | null {
   };
 }
 
-function normalizeVariation(raw: unknown): VariationConfig | null {
-  if (!isObj(raw)) return null;
-  const rates: Record<string, number> = {};
-  if (isObj(raw.rates)) {
-    for (const [k, v] of Object.entries(raw.rates)) {
-      if (typeof v === 'number' && Number.isFinite(v)) rates[k] = v;
+/** Keeps the finite-number entries of an event key -> number map. */
+function numberMap(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (isObj(raw)) {
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
     }
   }
+  return out;
+}
+
+function normalizeVariation(raw: unknown): VariationConfig | null {
+  if (!isObj(raw)) return null;
   return {
     id: str(raw.id) || uid(),
     index: num(raw.index, 0),
     label: str(raw.label),
-    rates,
+    rates: numberMap(raw.rates),
+    // Configs saved before occurrences existed have none, which means 1 for every event.
+    ...(isObj(raw.occurrences) && { occurrences: numberMap(raw.occurrences) }),
   };
 }
 

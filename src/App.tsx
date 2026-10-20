@@ -55,7 +55,7 @@ export default function App() {
   const patch = (p: Partial<SimConfig>) => setDraft((d) => ({ ...d, ...p }));
   const confirmDiscard = () => !modified || window.confirm('Discard unsaved changes to the current configuration?');
 
-  /** Fills a flag's variations from the API, keeping rates already entered for each index. */
+  /** Fills a flag's variations from the API, keeping rates and averages already entered for each index. */
   async function applyFlag(id: string, flag: LdFlag) {
     let variations = flag.variations;
     if (variations.length === 0 && catalog.token && draft.api.projectKey) {
@@ -74,7 +74,13 @@ export default function App() {
           ...f,
           variations: variations.map((v, index) => {
             const existing = f.variations.find((x) => x.index === index);
-            return { id: existing?.id ?? uid(), index, label: variationLabel(v), rates: existing?.rates ?? {} };
+            return {
+              id: existing?.id ?? uid(),
+              index,
+              label: variationLabel(v),
+              rates: existing?.rates ?? {},
+              ...(existing?.occurrences && { occurrences: existing.occurrences }),
+            };
           }),
         };
       }),
@@ -152,15 +158,37 @@ export default function App() {
       </header>
 
       <main className="layout">
-        <fieldset className="config" disabled={running}>
-          <ApiSection
-            api={draft.api}
-            catalog={catalog}
-            clientSideId={draft.clientSideId}
-            onChange={(api) => patch({ api })}
-            onClientSideId={(clientSideId) => patch({ clientSideId })}
-          />
-          <ContextKindsEditor kinds={draft.contextKinds} onChange={(contextKinds) => patch({ contextKinds })} />
+        <div className="layout-top">
+          <fieldset className="config" disabled={running}>
+            <ApiSection
+              api={draft.api}
+              catalog={catalog}
+              clientSideId={draft.clientSideId}
+              onChange={(api) => patch({ api })}
+              onClientSideId={(clientSideId) => patch({ clientSideId })}
+            />
+            <ContextKindsEditor kinds={draft.contextKinds} onChange={(contextKinds) => patch({ contextKinds })} />
+          </fieldset>
+
+          <div className="monitor">
+            <RunControls
+              intervalMs={draft.intervalMs}
+              maxContexts={draft.maxContexts}
+              status={status}
+              statusMessage={statusMessage}
+              errors={errors}
+              onIntervalMs={(intervalMs) => patch({ intervalMs })}
+              onMaxContexts={(maxContexts) => patch({ maxContexts })}
+              onStart={start}
+              onStop={() => runnerRef.current?.stop()}
+            />
+            <StatsPanel stats={stats} flags={draft.flags} running={running} />
+            <EventLog />
+          </div>
+        </div>
+
+        {/* Full width below both columns, so wide rates tables have room. */}
+        <fieldset className="config flags-row" disabled={running}>
           <FlagsSection
             flags={draft.flags}
             catalogFlags={catalog.flags.data}
@@ -169,22 +197,6 @@ export default function App() {
             onFlagPicked={(id, flag) => void applyFlag(id, flag)}
           />
         </fieldset>
-
-        <div className="monitor">
-          <RunControls
-            intervalMs={draft.intervalMs}
-            maxContexts={draft.maxContexts}
-            status={status}
-            statusMessage={statusMessage}
-            errors={errors}
-            onIntervalMs={(intervalMs) => patch({ intervalMs })}
-            onMaxContexts={(maxContexts) => patch({ maxContexts })}
-            onStart={start}
-            onStop={() => runnerRef.current?.stop()}
-          />
-          <StatsPanel stats={stats} flags={draft.flags} running={running} />
-          <EventLog />
-        </div>
       </main>
     </div>
   );

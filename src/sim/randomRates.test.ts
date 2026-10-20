@@ -24,7 +24,7 @@ describe('randomRatesForEvent', () => {
 describe('randomizeRates', () => {
   it('sets every event key on every variation and keeps other fields', () => {
     const vars: VariationConfig[] = [
-      { id: 'a', index: 0, label: 'A', rates: { old: 1 } },
+      { id: 'a', index: 0, label: 'A', rates: { old: 1 }, occurrences: { buy: 3.5 } },
       { id: 'b', index: 1, label: 'B', rates: {} },
     ];
     const out = randomizeRates(vars, ['buy', 'signup']);
@@ -35,5 +35,6 @@ describe('randomizeRates', () => {
       expect(v.rates.signup).toBeLessThanOrEqual(40);
     }
     expect(out[0].rates.old).toBe(1);
+    expect(out[0].occurrences).toEqual({ buy: 3.5 }); // only the % is randomized
   });
 });

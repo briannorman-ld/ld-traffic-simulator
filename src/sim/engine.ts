@@ -1,7 +1,7 @@
 import { createClient, type LDClient, type LDLogger } from '@launchdarkly/js-client-sdk';
 import type { RunStats, RunStatus, SimConfig, VariationStats, VisitFlag } from '../types';
 import { buildContext, describeContext } from './contextBuilder';
-import { rollConversions } from './conversions';
+import { rollEvents } from './conversions';
 import { logStore } from './logStore';
 import { setLoggedFlagKeys } from './networkLog';
 
@@ -21,8 +21,8 @@ const sdkLogger: LDLogger = {
 };
 
 /**
- * Simulates visitors one at a time: identify → evaluate every flag → track conversions → flush,
- * then waits `intervalMs` before the next visitor.
+ * Simulates visitors one at a time: identify → evaluate every flag → track conversions (once per
+ * occurrence) → flush, then waits `intervalMs` before the next visitor.
  */
 export class SimulationRunner {
   private readonly config: SimConfig;
@@ -72,7 +72,13 @@ export class SimulationRunner {
     for (const f of flags) {
       const byVariation: Record<string, VariationStats> = {};
       for (const v of f.variations) {
-        byVariation[String(v.index)] = { index: v.index, value: undefined, exposures: 0, conversions: {} };
+        byVariation[String(v.index)] = {
+          index: v.index,
+          value: undefined,
+          exposures: 0,
+          conversions: {},
+          occurrences: {},
+        };
       }
       stats.byFlag[f.key] = byVariation;
     }
@@ -142,7 +148,7 @@ export class SimulationRunner {
 
         const evaluations: Record<string, unknown> = {};
         const visitFlags: VisitFlag[] = [];
-        const converted: string[] = [];
+        const converted: Record<string, number> = {}; // event key -> times tracked
         for (const flag of flags) {
           const detail = client.variationDetail(flag.key, null);
           if (detail.reason?.kind === 'ERROR' && detail.reason.errorKind === 'FLAG_NOT_FOUND') {
@@ -157,6 +163,7 @@ export class SimulationRunner {
             value: detail.value,
             exposures: 0,
             conversions: {},
+            occurrences: {},
           });
           bucket.value = detail.value;
           bucket.exposures++;
@@ -170,10 +177,12 @@ export class SimulationRunner {
           });
 
           // Each event belongs to one flag, so only that flag's served variation decides it.
-          for (const key of rollConversions(variation, flag.eventKeys)) {
-            client.track(key);
+          // One track() per occurrence, never combined.
+          for (const { key, count } of rollEvents(variation, flag.eventKeys)) {
+            for (let n = 0; n < count; n++) client.track(key);
             bucket.conversions[key] = (bucket.conversions[key] ?? 0) + 1;
-            converted.push(key);
+            bucket.occurrences[key] = (bucket.occurrences[key] ?? 0) + count;
+            converted[key] = count;
           }
         }
         await client.flush();
@@ -187,7 +196,7 @@ export class SimulationRunner {
           visit: {
             number: stats.contexts,
             flags: visitFlags,
-            events: eventKeys.map((key) => ({ key, converted: converted.includes(key) })),
+            events: eventKeys.map((key) => ({ key, converted: key in converted, count: converted[key] ?? 0 })),
           },
           details: { context, evaluations, converted },
         });

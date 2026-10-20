@@ -72,6 +72,52 @@ describe('SimulationRunner conversions', () => {
   });
 });
 
+describe('SimulationRunner occurrences', () => {
+  const run = async (rate: number, occurrences: Record<string, number> | undefined, visitors: number) => {
+    let last: RunStats | null = null;
+    const flag = {
+      ...defaultFlag(),
+      key: 'a',
+      eventKeys: ['view'],
+      variations: [{ id: 'v', index: 0, label: 'A', rates: { view: rate }, ...(occurrences && { occurrences }) }],
+    };
+    await new SimulationRunner(config({ maxContexts: visitors, intervalMs: 0, flags: [flag] }), {
+      onStatus: () => {},
+      onStats: (s) => (last = s),
+    }).run();
+    return { tracks: sdk.client!.track.mock.calls, stats: last!.byFlag.a['0'] };
+  };
+
+  it('sends one track call per occurrence, about 3 per visitor at 100% with an average of 3', async () => {
+    const { tracks, stats } = await run(100, { view: 3 }, 1000);
+    expect(tracks.every((c) => c.length === 1 && c[0] === 'view')).toBe(true);
+    expect(tracks.length / 1000).toBeGreaterThan(2.7);
+    expect(tracks.length / 1000).toBeLessThan(3.3);
+    expect(stats.conversions.view).toBe(1000);
+    expect(stats.occurrences.view).toBe(tracks.length);
+  });
+
+  it('tracks after evaluating and before flushing each visitor', async () => {
+    await run(100, { view: 3 }, 1);
+    const c = sdk.client!;
+    const tracked = c.track.mock.invocationCallOrder;
+    expect(Math.min(...tracked)).toBeGreaterThan(c.variationDetail.mock.invocationCallOrder[0]);
+    expect(Math.max(...tracked)).toBeLessThan(c.flush.mock.invocationCallOrder[0]);
+  });
+
+  it('sends nothing at a rate of 0, whatever the average', async () => {
+    const { tracks, stats } = await run(0, { view: 5 }, 50);
+    expect(tracks).toEqual([]);
+    expect(stats.occurrences).toEqual({});
+  });
+
+  it('sends exactly one call per converting visitor when no average is set', async () => {
+    const { tracks, stats } = await run(100, undefined, 20);
+    expect(tracks).toHaveLength(20);
+    expect(stats.occurrences.view).toBe(20);
+  });
+});
+
 describe('SimulationRunner shutdown', () => {
   it('stops during the pause between visitors and closes the client', async () => {
     const { runner, statuses, done } = start(config({ intervalMs: 60_000 }));

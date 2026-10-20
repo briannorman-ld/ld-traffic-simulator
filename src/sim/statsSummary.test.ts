@@ -8,6 +8,7 @@ const stats = (exposures: number, conversions: Record<string, number>): Variatio
   value: true,
   exposures,
   conversions,
+  occurrences: conversions,
 });
 
 describe('targetGap', () => {

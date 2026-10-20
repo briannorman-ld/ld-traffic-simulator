@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { avgOccurrences, rollConversions, rollEvents } from './sim/conversions';
 import { defaultConfig, defaultFlag, normalizeConfig, normalizeSaved } from './storage';
 import type { SimConfig } from './types';
 import { validateConfig } from './validation';
@@ -55,6 +56,36 @@ describe('normalizeConfig', () => {
       ],
     });
     expect(c.flags.map((f) => f.eventKeys)).toEqual([['view', 'signup'], ['buy']]);
+  });
+
+  it('loads configs saved before averages existed and behaves as before', () => {
+    const [saved] = normalizeSaved([
+      {
+        id: 's1',
+        name: 'old',
+        config: {
+          clientSideId: 'abc',
+          flags: [{ key: 'f', eventKeys: ['buy'], variations: [{ index: 0, label: 'A', rates: { buy: 40 } }] }],
+        },
+      },
+    ]);
+    const v = saved.config.flags[0].variations[0];
+    expect(v.occurrences).toBeUndefined();
+    expect(avgOccurrences(v, 'buy')).toBe(1);
+    expect(validateConfig(saved.config)).toEqual([]);
+    for (const roll of [0.1, 0.39, 0.4, 0.9]) {
+      expect(rollEvents(v, ['buy'], () => roll)).toEqual(
+        rollConversions(v, ['buy'], () => roll).map((key) => ({ key, count: 1 })),
+      );
+    }
+  });
+
+  it('round-trips averages and drops malformed ones', () => {
+    const c = valid();
+    c.flags[0].variations[0].occurrences = { buy: 3.9 };
+    expect(normalizeConfig(JSON.parse(JSON.stringify(c)))).toEqual(c);
+    const bad = normalizeConfig({ flags: [{ variations: [{ occurrences: { a: 2, b: 'x', c: null } }] }] });
+    expect(bad.flags[0].variations[0].occurrences).toEqual({ a: 2 });
   });
 
   it('normalizes saved config lists', () => {
@@ -118,6 +149,15 @@ describe('validateConfig', () => {
     const c = valid();
     c.flags.push({ ...defaultFlag(), key: 'other', eventKeys: ['buy'] });
     expect(validateConfig(c)).toContain('Event "buy" is used by both "my-flag" and "other".');
+  });
+
+  it('requires averages of 1 or more on events that can fire', () => {
+    const c = valid();
+    c.flags[0].variations[0].rates = { buy: 50 };
+    c.flags[0].variations[0].occurrences = { buy: 0.5 };
+    expect(validateConfig(c)).toContain('Average per visitor for "Control" on "buy" must be 1 or more.');
+    c.flags[0].variations[0].rates = { buy: 0 }; // the input is disabled at 0%
+    expect(validateConfig(c)).toEqual([]);
   });
 
   it('requires at least one flag', () => {

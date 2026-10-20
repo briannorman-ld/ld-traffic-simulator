@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { LdFlag, LdMetric } from '../api/ldApi';
+import { avgOccurrences } from '../sim/conversions';
 import { randomizeRates } from '../sim/randomRates';
 import { defaultFlag } from '../storage';
 import type { FlagConfig } from '../types';
@@ -19,7 +21,13 @@ interface Props {
 
 const flagLabel = (f: FlagConfig, i: number) => (f.key.trim() ? `"${f.key.trim()}"` : `flag #${i + 1}`);
 
+/** True when any of the flag's events has an average other than the default of 1. */
+const hasCustomOccurrences = (f: FlagConfig) =>
+  f.variations.some((v) => f.eventKeys.some((k) => avgOccurrences(v, k) !== 1));
+
 export function FlagsSection({ flags, catalogFlags, metrics, onChange, onFlagPicked }: Props) {
+  // Flag id -> occurrences shown. Unset means shown only when the flag already has custom averages.
+  const [occurrencesShown, setOccurrencesShown] = useState<Record<string, boolean>>({});
   const update = (id: string, patch: Partial<FlagConfig>) =>
     onChange(flags.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   const removeEvent = (flag: FlagConfig, key: string) =>
@@ -28,7 +36,10 @@ export function FlagsSection({ flags, catalogFlags, metrics, onChange, onFlagPic
       variations: flag.variations.map((v) => {
         const rates = { ...v.rates };
         delete rates[key];
-        return { ...v, rates };
+        if (!v.occurrences) return { ...v, rates };
+        const occurrences = { ...v.occurrences };
+        delete occurrences[key];
+        return { ...v, rates, occurrences };
       }),
     });
 
@@ -41,13 +52,17 @@ export function FlagsSection({ flags, catalogFlags, metrics, onChange, onFlagPic
         </span>
       </div>
       <p className="hint">
-        Each flag drives its own events: rates are the % of visitors served each variation who fire each event, and an
-        event belongs to one flag only. Index is the variation's position in the flag (0 = first).
-        {catalogFlags?.length ? ' Picking a flag fills these in; rates you already entered are kept by index.' : ''}
+        Each flag drives its own events, and an event belongs to one flag only. For each variation and event, the % is
+        the share of visitors served that variation who fire the event at least once. “Configure occurrences” adds an
+        “avg” for how many times they fire it on average once they do (1 = once, the default; raise it for count
+        metrics). Index is the variation's position in the flag (0 = first).
+        {catalogFlags?.length ? ' Picking a flag fills these in; values you already entered are kept by index.' : ''}
       </p>
 
       {flags.map((flag, i) => {
         const known = catalogFlags?.find((f) => f.key === flag.key);
+        const customOccurrences = hasCustomOccurrences(flag);
+        const showOccurrences = occurrencesShown[flag.id] ?? customOccurrences;
         // Keys used by the other cards; a flag can only be added once.
         const takenFlags = new Set(flags.filter((f) => f.id !== flag.id).map((f) => f.key.trim()).filter(Boolean));
         // Only the later copy gets the message, so the first stays the one to keep.
@@ -122,8 +137,18 @@ export function FlagsSection({ flags, catalogFlags, metrics, onChange, onFlagPic
               <button
                 type="button"
                 className="link push-right"
+                aria-expanded={showOccurrences}
                 disabled={flag.eventKeys.length === 0 || flag.variations.length === 0}
-                title="Random rates from 5–40% per event, with variations within 10% (relative) of each other"
+                title="Average times a visitor who fires an event fires it, for count metrics (default 1)"
+                onClick={() => setOccurrencesShown({ ...occurrencesShown, [flag.id]: !showOccurrences })}
+              >
+                {showOccurrences ? 'Hide occurrences' : `Configure occurrences${customOccurrences ? ' (customized)' : ''}`}
+              </button>
+              <button
+                type="button"
+                className="link"
+                disabled={flag.eventKeys.length === 0 || flag.variations.length === 0}
+                title="Random rates from 5–40% per event, with variations within 10% (relative) of each other. Averages are kept."
                 onClick={() => update(flag.id, { variations: randomizeRates(flag.variations, flag.eventKeys) })}
               >
                 Randomize rates
@@ -132,6 +157,7 @@ export function FlagsSection({ flags, catalogFlags, metrics, onChange, onFlagPic
             <VariationRatesTable
               variations={flag.variations}
               eventKeys={flag.eventKeys}
+              showOccurrences={showOccurrences}
               onChange={(variations) => update(flag.id, { variations })}
             />
           </div>

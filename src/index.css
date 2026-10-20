@@ -125,9 +125,15 @@ pre {
 }
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   padding: 16px 20px 40px;
+}
+/* Its own grid, so the sticky monitor stops above the full-width flags row. */
+.layout-top {
+  display: grid;
+  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
 .config {
@@ -151,11 +157,22 @@ pre {
   top: 76px;
 }
 @media (max-width: 1000px) {
+  /* One column, with flags before the monitor like the rest of the config. */
   .layout {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'config' 'flags' 'monitor';
     padding: 16px;
   }
+  .layout-top {
+    display: contents;
+  }
+  .config {
+    grid-area: config;
+  }
+  .config.flags-row {
+    grid-area: flags;
+  }
   .monitor {
+    grid-area: monitor;
     position: static;
   }
 }
@@ -610,6 +627,17 @@ table.stats td {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+/* Average occurrences sits under the rate in each rates-table cell. */
+.pct.avg {
+  display: flex;
+  margin-top: 2px;
+}
+.pct.avg input:disabled {
+  opacity: 0.5;
+}
+input.invalid {
+  border-color: var(--danger);
 }
 tr.warn-row td {
   background: var(--warn-bg);

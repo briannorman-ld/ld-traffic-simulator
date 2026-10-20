@@ -1,7 +1,10 @@
+import { avgOccurrences } from './sim/conversions';
 import type { SimConfig } from './types';
 
 const KIND_RE = /^[a-zA-Z0-9._-]+$/;
 const RESERVED_ATTRS = new Set(['kind', 'key', 'anonymous', '_meta']);
+
+export const isValidAvgOccurrences = (n: number) => Number.isFinite(n) && n >= 1;
 
 /** Returns a list of human-readable problems; empty means the config can run. */
 export function validateConfig(c: SimConfig): string[] {
@@ -62,6 +65,9 @@ export function validateConfig(c: SimConfig): string[] {
       for (const eventKey of f.eventKeys) {
         const r = v.rates[eventKey] ?? 0;
         if (!(r >= 0 && r <= 100)) errors.push(`Rate for "${label}"${on} on "${eventKey}" must be 0–100.`);
+        // Only matters when the event can fire; the input is disabled at 0%.
+        if (r > 0 && !isValidAvgOccurrences(avgOccurrences(v, eventKey)))
+          errors.push(`Average per visitor for "${label}"${on} on "${eventKey}" must be 1 or more.`);
       }
     });
   });

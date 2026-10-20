@@ -22,6 +22,8 @@ export interface VariationConfig {
   label: string;
   /** eventKey -> conversion rate in percent (0-100). Missing means 0. */
   rates: Record<string, number>;
+  /** eventKey -> average times a visitor who fires the event fires it (at least 1). Missing means 1. */
+  occurrences?: Record<string, number>;
 }
 
 export interface FlagConfig {
@@ -98,14 +100,18 @@ export interface VisitFlag {
 export interface VisitSummary {
   number: number;
   flags: VisitFlag[];
-  events: { key: string; converted: boolean }[];
+  /** `count` is how many times the event was tracked (0 when it didn't fire). */
+  events: { key: string; converted: boolean; count: number }[];
 }
 
 export interface VariationStats {
   index: number | null;
   value: unknown;
   exposures: number;
+  /** eventKey -> visitors who fired the event at least once. */
   conversions: Record<string, number>;
+  /** eventKey -> track calls sent, counting every occurrence. */
+  occurrences: Record<string, number>;
 }
 
 export interface RunStats {

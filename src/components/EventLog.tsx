@@ -50,11 +50,16 @@ function VisitLine({ visit }: { visit: VisitSummary }) {
         ))}
         {visit.events.length > 0 && <span className="visit-sep" aria-hidden />}
         {visit.events.map((e) => (
-          <span key={e.key} className={`conv-chip ${e.converted ? 'hit' : ''}`} title={e.converted ? 'Converted' : 'Did not convert'}>
+          <span
+            key={e.key}
+            className={`conv-chip ${e.converted ? 'hit' : ''}`}
+            title={e.converted ? `Converted (tracked ${e.count}×)` : 'Did not convert'}
+          >
             <span className="mark" aria-hidden>
               {e.converted ? '✓' : '·'}
             </span>
             {e.key}
+            {e.count > 1 && ` ×${e.count}`}
           </span>
         ))}
       </span>
