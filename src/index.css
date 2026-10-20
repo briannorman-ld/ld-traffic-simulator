@@ -509,13 +509,95 @@ table.rates td:nth-child(2) {
 .subcard table.rates td:nth-child(-n + 2) {
   background: var(--surface-2);
 }
+/* --- Live stats: one block per flag, summary always shown, table on expand --- */
 .stats-flag {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+}
+button.stats-flag-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  white-space: normal;
+}
+.stats-flag-head .caret {
+  flex-shrink: 0;
+  width: 10px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.stats-flag.open .caret {
+  transform: rotate(90deg);
+}
+.event-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .stats-flag-key {
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere; /* prefers the hyphens in long keys */
+}
+.stats-flag-head .push-right {
+  white-space: nowrap;
+}
+.split-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--border);
+}
+.split-bar span {
+  background: var(--vc);
+  min-width: 2px;
+}
+.split-bar span.fallback {
+  --vc: var(--warn);
+}
+.split-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.split-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.split-count {
+  font-variant-numeric: tabular-nums;
+}
+.gap {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.gap.ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+.gap.off {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+table.stats .var-chip {
+  white-space: nowrap;
 }
 table.stats td {
   border-bottom: 1px solid var(--border);

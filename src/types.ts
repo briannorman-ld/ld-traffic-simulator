@@ -27,6 +27,8 @@ export interface VariationConfig {
 export interface FlagConfig {
   id: string;
   key: string;
+  /** Events this flag drives. Each event key belongs to one flag only. */
+  eventKeys: string[];
   variations: VariationConfig[];
 }
 
@@ -47,7 +49,6 @@ export interface SimConfig {
   clientSideId: string;
   /** Every visitor is evaluated on each of these. */
   flags: FlagConfig[];
-  eventKeys: string[];
   contextKinds: ContextKindConfig[];
   intervalMs: number;
   maxContexts: number | null;

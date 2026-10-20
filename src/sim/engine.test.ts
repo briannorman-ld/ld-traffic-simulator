@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultConfig, defaultFlag } from '../storage';
-import type { RunStatus, SimConfig } from '../types';
+import type { RunStats, RunStatus, SimConfig } from '../types';
 import { SimulationRunner } from './engine';
 
 const sdk = vi.hoisted(() => ({
@@ -32,8 +32,7 @@ vi.mock('@launchdarkly/js-client-sdk', () => ({
 const config = (over: Partial<SimConfig> = {}): SimConfig => ({
   ...defaultConfig(),
   clientSideId: 'abc',
-  flags: [{ ...defaultFlag(), key: 'a' }],
-  eventKeys: ['buy'],
+  flags: [{ ...defaultFlag(), key: 'a', eventKeys: ['buy'] }],
   ...over,
 });
 
@@ -51,6 +50,26 @@ beforeEach(() => {
   sdk.client = null;
   sdk.initStatus = 'complete';
   sdk.flagFound = true;
+});
+
+describe('SimulationRunner conversions', () => {
+  it("tracks each flag's own events and credits only that flag", async () => {
+    const flag = (key: string, eventKeys: string[], rates: Record<string, number>) => ({
+      ...defaultFlag(),
+      key,
+      eventKeys,
+      variations: [{ id: key, index: 0, label: 'A', rates }],
+    });
+    let last: RunStats | null = null;
+    const runner = new SimulationRunner(
+      config({ maxContexts: 1, flags: [flag('a', ['buy'], { buy: 100 }), flag('b', ['view'], { view: 100 })] }),
+      { onStatus: () => {}, onStats: (s) => (last = s) },
+    );
+    await runner.run();
+    expect(sdk.client!.track.mock.calls).toEqual([['buy'], ['view']]);
+    expect(last!.byFlag.a['0'].conversions).toEqual({ buy: 1 });
+    expect(last!.byFlag.b['0'].conversions).toEqual({ view: 1 });
+  });
 });
 
 describe('SimulationRunner shutdown', () => {

@@ -1,7 +1,7 @@
 import { createClient, type LDClient, type LDLogger } from '@launchdarkly/js-client-sdk';
 import type { RunStats, RunStatus, SimConfig, VariationStats, VisitFlag } from '../types';
 import { buildContext, describeContext } from './contextBuilder';
-import { rollConversionsAcrossFlags } from './conversions';
+import { rollConversions } from './conversions';
 import { logStore } from './logStore';
 import { setLoggedFlagKeys } from './networkLog';
 
@@ -61,6 +61,7 @@ export class SimulationRunner {
     const cfg = this.config;
     const flags = cfg.flags.map((f) => ({ ...f, key: f.key.trim() }));
     const flagKeys = flags.map((f) => f.key);
+    const eventKeys = flags.flatMap((f) => f.eventKeys);
     const stats: RunStats = {
       startedAt: Date.now(),
       endedAt: null,
@@ -84,7 +85,7 @@ export class SimulationRunner {
       category: 'run',
       level: 'info',
       title: 'Run started',
-      summary: `${flagKeys.join(', ')} · ${cfg.eventKeys.join(', ')} · every ${cfg.intervalMs} ms · ${
+      summary: `${flagKeys.join(', ')} · ${eventKeys.join(', ')} · every ${cfg.intervalMs} ms · ${
         cfg.maxContexts ? `stop after ${cfg.maxContexts}` : `stop after ${DEFAULT_MAX_RUN_MINUTES} min`
       }`,
       details: { ...cfg, api: undefined },
@@ -141,9 +142,9 @@ export class SimulationRunner {
 
         const evaluations: Record<string, unknown> = {};
         const visitFlags: VisitFlag[] = [];
-        const buckets: VariationStats[] = [];
-        const served = flags.map((flag) => {
-          const detail = client!.variationDetail(flag.key, null);
+        const converted: string[] = [];
+        for (const flag of flags) {
+          const detail = client.variationDetail(flag.key, null);
           if (detail.reason?.kind === 'ERROR' && detail.reason.errorKind === 'FLAG_NOT_FOUND') {
             throw new Error(`Flag "${flag.key}" was not found in this environment`);
           }
@@ -159,7 +160,6 @@ export class SimulationRunner {
           });
           bucket.value = detail.value;
           bucket.exposures++;
-          buckets.push(bucket);
 
           const variation = idx === null ? undefined : flag.variations.find((v) => v.index === idx);
           visitFlags.push({
@@ -168,14 +168,13 @@ export class SimulationRunner {
             label: variation?.label || (typeof detail.value === 'string' ? detail.value : JSON.stringify(detail.value)),
             configured: !!variation,
           });
-          return variation;
-        });
 
-        const converted = rollConversionsAcrossFlags(served, cfg.eventKeys);
-        for (const key of converted) {
-          client.track(key);
-          // Every flag's variation gets credit, since that's what each flag's experiment would see.
-          for (const bucket of buckets) bucket.conversions[key] = (bucket.conversions[key] ?? 0) + 1;
+          // Each event belongs to one flag, so only that flag's served variation decides it.
+          for (const key of rollConversions(variation, flag.eventKeys)) {
+            client.track(key);
+            bucket.conversions[key] = (bucket.conversions[key] ?? 0) + 1;
+            converted.push(key);
+          }
         }
         await client.flush();
 
@@ -188,7 +187,7 @@ export class SimulationRunner {
           visit: {
             number: stats.contexts,
             flags: visitFlags,
-            events: cfg.eventKeys.map((key) => ({ key, converted: converted.includes(key) })),
+            events: eventKeys.map((key) => ({ key, converted: converted.includes(key) })),
           },
           details: { context, evaluations, converted },
         });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ContextKindConfig, VariationConfig } from '../types';
 import { buildContext, describeContext } from './contextBuilder';
-import { rollConversions, rollConversionsAcrossFlags } from './conversions';
+import { rollConversions } from './conversions';
 
 const kind = (over: Partial<ContextKindConfig>): ContextKindConfig => ({
   id: 'k',
@@ -77,20 +77,5 @@ describe('rollConversions', () => {
     for (let i = 0; i < 20000; i++) hits += rollConversions(variation, ['buy']).length;
     expect(hits / 20000).toBeGreaterThan(0.28);
     expect(hits / 20000).toBeLessThan(0.32);
-  });
-});
-
-describe('rollConversionsAcrossFlags', () => {
-  const a: VariationConfig = { id: 'a', index: 0, label: 'A', rates: { buy: 100, signup: 0 } };
-  const b: VariationConfig = { id: 'b', index: 1, label: 'B', rates: { buy: 0, signup: 100 } };
-
-  it('fires an event once when any flag hits, in event-key order', () => {
-    expect(rollConversionsAcrossFlags([b, a], ['buy', 'signup'], () => 0.5)).toEqual(['buy', 'signup']);
-    expect(rollConversionsAcrossFlags([a, a], ['buy'], () => 0)).toEqual(['buy']);
-  });
-
-  it('ignores flags whose served variation is not configured', () => {
-    expect(rollConversionsAcrossFlags([undefined, a], ['buy', 'signup'], () => 0.5)).toEqual(['buy']);
-    expect(rollConversionsAcrossFlags([undefined], ['buy'], () => 0)).toEqual([]);
   });
 });

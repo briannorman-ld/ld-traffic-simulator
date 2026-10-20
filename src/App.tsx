@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getFlag, variationLabel, type LdFlag } from './api/ldApi';
 import { ApiSection } from './components/ApiSection';
 import { ContextKindsEditor } from './components/ContextKindsEditor';
-import { EventKeysEditor } from './components/EventKeysEditor';
 import { EventLog } from './components/EventLog';
 import { FlagsSection } from './components/FlagsSection';
 import { RunControls } from './components/RunControls';
@@ -50,7 +49,7 @@ export default function App() {
   const active = saved.find((s) => s.id === activeId) ?? null;
   const modified = active
     ? JSON.stringify(active.config) !== JSON.stringify(draft)
-    : Boolean(draft.clientSideId || draft.flags.some((f) => f.key) || draft.eventKeys.length);
+    : Boolean(draft.clientSideId || draft.flags.some((f) => f.key || f.eventKeys.length));
   const errors = useMemo(() => validateConfig(draft), [draft]);
 
   const patch = (p: Partial<SimConfig>) => setDraft((d) => ({ ...d, ...p }));
@@ -161,30 +160,11 @@ export default function App() {
             onChange={(api) => patch({ api })}
             onClientSideId={(clientSideId) => patch({ clientSideId })}
           />
-          <EventKeysEditor
-            eventKeys={draft.eventKeys}
-            metrics={catalog.metrics.data}
-            onAdd={(key) => setDraft((d) => ({ ...d, eventKeys: [...d.eventKeys, key] }))}
-            onRemove={(key) =>
-              setDraft((d) => ({
-                ...d,
-                eventKeys: d.eventKeys.filter((k) => k !== key),
-                flags: d.flags.map((f) => ({
-                  ...f,
-                  variations: f.variations.map((v) => {
-                    const rates = { ...v.rates };
-                    delete rates[key];
-                    return { ...v, rates };
-                  }),
-                })),
-              }))
-            }
-          />
           <ContextKindsEditor kinds={draft.contextKinds} onChange={(contextKinds) => patch({ contextKinds })} />
           <FlagsSection
             flags={draft.flags}
             catalogFlags={catalog.flags.data}
-            eventKeys={draft.eventKeys}
+            metrics={catalog.metrics.data}
             onChange={(flags) => patch({ flags })}
             onFlagPicked={(id, flag) => void applyFlag(id, flag)}
           />
@@ -202,7 +182,7 @@ export default function App() {
             onStart={start}
             onStop={() => runnerRef.current?.stop()}
           />
-          <StatsPanel stats={stats} flags={draft.flags} eventKeys={draft.eventKeys} running={running} />
+          <StatsPanel stats={stats} flags={draft.flags} running={running} />
           <EventLog />
         </div>
       </main>

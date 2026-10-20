@@ -1,7 +1,8 @@
-import { useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { logStore } from '../sim/logStore';
 import type { LogCategory, LogEntry, VisitFlag, VisitSummary } from '../types';
+import { variationStyle } from './variationColor';
 
 const CATEGORIES: { key: LogCategory; label: string }[] = [
   { key: 'run', label: 'Run' },
@@ -23,15 +24,12 @@ function time(t: number) {
   return `${d.toLocaleTimeString([], { hour12: false })}.${String(d.getMilliseconds()).padStart(3, '0')}`;
 }
 
-const VARIATION_COLORS = 6;
-
 function VariationChip({ flag, showKey }: { flag: VisitFlag; showKey: boolean }) {
   const idx = flag.variationIndex;
-  const chipStyle = idx === null ? undefined : ({ '--vc': `var(--v${idx % VARIATION_COLORS})` } as CSSProperties);
   return (
     <span
       className={`var-chip ${flag.configured ? '' : 'fallback'}`}
-      style={chipStyle}
+      style={variationStyle(idx, flag.configured)}
       title={`${flag.flagKey}: ${flag.configured ? `variation ${idx}` : 'served variation is not in the rates table'}`}
     >
       <span className="var-index">{idx ?? '?'}</span>

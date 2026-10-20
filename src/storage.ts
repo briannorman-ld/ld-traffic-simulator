@@ -21,6 +21,7 @@ export function defaultFlag(): FlagConfig {
   return {
     id: uid(),
     key: '',
+    eventKeys: [],
     variations: [
       { id: uid(), index: 0, label: 'Control', rates: {} },
       { id: uid(), index: 1, label: 'Treatment', rates: {} },
@@ -33,7 +34,6 @@ export function defaultConfig(): SimConfig {
     api: { token: null, projectKey: '', environmentKey: '' },
     clientSideId: '',
     flags: [defaultFlag()],
-    eventKeys: [],
     contextKinds: [
       { id: uid(), kind: 'user', keyPrefix: 'sim-user-', anonymous: false, attributes: [] },
     ],
@@ -113,16 +113,34 @@ function normalizeVariations(raw: unknown, fallback: VariationConfig[]): Variati
     : fallback;
 }
 
+const strings = (v: unknown): string[] => arr(v).filter((k): k is string => typeof k === 'string');
+
 function normalizeFlag(raw: unknown): FlagConfig | null {
   if (!isObj(raw)) return null;
-  return { id: str(raw.id) || uid(), key: str(raw.key), variations: normalizeVariations(raw.variations, []) };
+  return {
+    id: str(raw.id) || uid(),
+    key: str(raw.key),
+    eventKeys: strings(raw.eventKeys),
+    variations: normalizeVariations(raw.variations, []),
+  };
 }
 
-/** Configs saved before multiple flags kept one `flagKey` and `variations` at the top level. */
+/**
+ * Older configs kept one `flagKey` + `variations` at the top level, and later ones one shared
+ * `eventKeys` list for every flag. Each shared event moves to the first flag with a non-zero
+ * rate for it (or the first flag), since an event now belongs to one flag.
+ */
 function normalizeFlags(raw: Record<string, unknown>): FlagConfig[] {
-  if (Array.isArray(raw.flags)) return raw.flags.map(normalizeFlag).filter((f): f is FlagConfig => f !== null);
   const d = defaultFlag();
-  return [{ ...d, key: str(raw.flagKey), variations: normalizeVariations(raw.variations, d.variations) }];
+  const flags = Array.isArray(raw.flags)
+    ? raw.flags.map(normalizeFlag).filter((f): f is FlagConfig => f !== null)
+    : [{ ...d, key: str(raw.flagKey), variations: normalizeVariations(raw.variations, d.variations) }];
+  for (const key of strings(raw.eventKeys)) {
+    if (flags.length === 0 || flags.some((f) => f.eventKeys.includes(key))) continue;
+    const owner = flags.find((f) => f.variations.some((v) => (v.rates[key] ?? 0) > 0)) ?? flags[0];
+    owner.eventKeys.push(key);
+  }
+  return flags;
 }
 
 function normalizeApi(raw: unknown): ApiSettings {
@@ -140,7 +158,6 @@ export function normalizeConfig(raw: unknown): SimConfig {
     api: normalizeApi(raw.api),
     clientSideId: str(raw.clientSideId),
     flags: normalizeFlags(raw),
-    eventKeys: arr(raw.eventKeys).filter((k): k is string => typeof k === 'string'),
     contextKinds: Array.isArray(raw.contextKinds)
       ? raw.contextKinds.map(normalizeKind).filter((k): k is ContextKindConfig => k !== null)
       : d.contextKinds,

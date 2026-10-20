@@ -10,7 +10,7 @@ No backend, no database. All state lives in `localStorage`.
 |---|---|
 | Stack | Vite + React + TypeScript, built to static files |
 | Sending traffic | Official LaunchDarkly browser SDK (`identify` → `variationDetail` → `track` → `flush`) |
-| Flags (added) | One or more flags, each with its own variations & rates. Every visitor is evaluated on all of them; each event rolls once per flag and is tracked once if any roll hits |
+| Flags (added) | One or more flags, each with its own event keys, variations & rates. Every visitor is evaluated on all of them; an event key belongs to one flag, and only that flag's served variation decides it |
 | Variations | Entered manually, or auto-filled from the flag when an API token is set; each has its own rate per event key |
 | Multiple event keys | Independent: each event gets its own roll for every context |
 | Context kinds | All configured kinds are combined into one multi-context per visitor (a single kind gives a single-kind context) |
@@ -46,12 +46,11 @@ interface VariationConfig {
   rates: Record<string, number>; // eventKey -> 0..100 (%)
 }
 
-interface FlagConfig { id: string; key: string; variations: VariationConfig[] }
+interface FlagConfig { id: string; key: string; eventKeys: string[]; variations: VariationConfig[] }
 
 interface SimConfig {
   clientSideId: string;
-  flags: FlagConfig[];     // configs saved with a single flagKey + variations are migrated on load
-  eventKeys: string[];
+  flags: FlagConfig[];     // older top-level flagKey/variations/eventKeys are migrated on load
   contextKinds: ContextKindConfig[];
   intervalMs: number;
   maxContexts: number | null;

@@ -9,7 +9,7 @@ export function validateConfig(c: SimConfig): string[] {
 
   if (!c.clientSideId.trim()) errors.push('Client-side ID is required.');
   if (c.flags.length === 0) errors.push('Add at least one flag.');
-  if (c.eventKeys.length === 0) errors.push('Add at least one event key.');
+  else if (c.flags.every((f) => f.eventKeys.length === 0)) errors.push('Add at least one event key.');
 
   if (c.contextKinds.length === 0) errors.push('Add at least one context kind.');
   const kindNames = new Set<string>();
@@ -36,6 +36,7 @@ export function validateConfig(c: SimConfig): string[] {
   });
 
   const flagKeys = new Set<string>();
+  const eventOwners = new Map<string, string>(); // event key -> flag that uses it, for messages
   c.flags.forEach((f, i) => {
     const key = f.key.trim();
     // Only name the flag in messages when there's more than one.
@@ -43,6 +44,12 @@ export function validateConfig(c: SimConfig): string[] {
     if (!key) errors.push(c.flags.length > 1 ? `Flag #${i + 1} needs a key.` : 'Flag key is required.');
     else if (flagKeys.has(key)) errors.push(`Flag "${key}" is listed twice.`);
     flagKeys.add(key);
+
+    for (const eventKey of f.eventKeys) {
+      const owner = eventOwners.get(eventKey);
+      if (owner !== undefined) errors.push(`Event "${eventKey}" is used by both ${owner} and ${key ? `"${key}"` : `flag #${i + 1}`}.`);
+      else eventOwners.set(eventKey, key ? `"${key}"` : `flag #${i + 1}`);
+    }
 
     if (f.variations.length === 0) errors.push(`Add at least one variation${on}.`);
     const indexes = new Set<number>();
@@ -52,7 +59,7 @@ export function validateConfig(c: SimConfig): string[] {
         errors.push(`Variation "${label}"${on} needs a whole-number index of 0 or more.`);
       if (indexes.has(v.index)) errors.push(`Variation index ${v.index}${on} is listed twice.`);
       indexes.add(v.index);
-      for (const eventKey of c.eventKeys) {
+      for (const eventKey of f.eventKeys) {
         const r = v.rates[eventKey] ?? 0;
         if (!(r >= 0 && r <= 100)) errors.push(`Rate for "${label}"${on} on "${eventKey}" must be 0–100.`);
       }
