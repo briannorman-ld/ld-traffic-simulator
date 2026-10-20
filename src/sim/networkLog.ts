@@ -54,19 +54,24 @@ function summarizeEvents(body: unknown): string | undefined {
   return [...counts].map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(', ');
 }
 
-function summarizeEvaluation(body: unknown, flagKey: string | null): string | undefined {
-  if (!flagKey || typeof body !== 'object' || body === null) return undefined;
-  const flag = (body as Record<string, { variation?: number; value?: unknown }>)[flagKey];
-  if (!flag) return `"${flagKey}" not in response`;
-  return `${flagKey} → variation ${flag.variation ?? '—'} (${JSON.stringify(flag.value)})`;
+function summarizeEvaluation(body: unknown, flagKeys: string[]): string | undefined {
+  if (flagKeys.length === 0 || typeof body !== 'object' || body === null) return undefined;
+  const all = body as Record<string, { variation?: number; value?: unknown }>;
+  return flagKeys
+    .map((key) => {
+      const flag = all[key];
+      if (!flag) return `"${key}" not in response`;
+      return `${key} → variation ${flag.variation ?? '—'} (${JSON.stringify(flag.value)})`;
+    })
+    .join(' · ');
 }
 
 let installed = false;
-let currentFlagKey: string | null = null;
+let currentFlagKeys: string[] = [];
 
-/** Lets evaluation log rows summarize the flag being simulated. */
-export function setLoggedFlagKey(key: string | null) {
-  currentFlagKey = key;
+/** Lets evaluation log rows summarize the flags being simulated. */
+export function setLoggedFlagKeys(keys: string[]) {
+  currentFlagKeys = keys;
 }
 
 /** Wraps window.fetch so every request the SDK makes (and its response) lands in the log. */
@@ -109,7 +114,7 @@ export function installNetworkLog() {
               category === 'events'
                 ? summarizeEvents(requestBody)
                 : category === 'evaluation'
-                  ? summarizeEvaluation(body, currentFlagKey)
+                  ? summarizeEvaluation(body, currentFlagKeys)
                   : undefined,
             details: {
               durationMs: Date.now() - started,

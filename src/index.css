@@ -500,6 +500,19 @@ table.rates td:nth-child(2) {
   min-width: 162px;
   box-shadow: 1px 0 0 var(--border);
 }
+/* Rates tables inside a flag's subcard sit on the darker surface. */
+.subcard table.rates th:nth-child(-n + 2),
+.subcard table.rates td:nth-child(-n + 2) {
+  background: var(--surface-2);
+}
+.stats-flag {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stats-flag-key {
+  font-weight: 600;
+}
 table.stats td {
   border-bottom: 1px solid var(--border);
   padding: 8px 6px;
@@ -633,6 +646,12 @@ details summary {
   font-size: 10px;
   background: var(--vc);
   color: var(--surface);
+}
+.var-chip .var-flag {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.8;
 }
 .var-chip.fallback {
   --vc: var(--warn);

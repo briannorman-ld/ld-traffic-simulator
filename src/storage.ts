@@ -3,6 +3,7 @@ import type {
   AttrType,
   EncryptedSecret,
   ContextKindConfig,
+  FlagConfig,
   SavedConfig,
   SimConfig,
   StaticAttribute,
@@ -16,18 +17,25 @@ export const STORAGE_KEYS = {
   activeSavedId: 'lts:activeSavedId',
 } as const;
 
+export function defaultFlag(): FlagConfig {
+  return {
+    id: uid(),
+    key: '',
+    variations: [
+      { id: uid(), index: 0, label: 'Control', rates: {} },
+      { id: uid(), index: 1, label: 'Treatment', rates: {} },
+    ],
+  };
+}
+
 export function defaultConfig(): SimConfig {
   return {
     api: { token: null, projectKey: '', environmentKey: '' },
     clientSideId: '',
-    flagKey: '',
+    flags: [defaultFlag()],
     eventKeys: [],
     contextKinds: [
       { id: uid(), kind: 'user', keyPrefix: 'sim-user-', anonymous: false, attributes: [] },
-    ],
-    variations: [
-      { id: uid(), index: 0, label: 'Control', rates: {} },
-      { id: uid(), index: 1, label: 'Treatment', rates: {} },
     ],
     intervalMs: 500,
     maxContexts: null,
@@ -99,6 +107,24 @@ function normalizeVariation(raw: unknown): VariationConfig | null {
   };
 }
 
+function normalizeVariations(raw: unknown, fallback: VariationConfig[]): VariationConfig[] {
+  return Array.isArray(raw)
+    ? raw.map(normalizeVariation).filter((v): v is VariationConfig => v !== null)
+    : fallback;
+}
+
+function normalizeFlag(raw: unknown): FlagConfig | null {
+  if (!isObj(raw)) return null;
+  return { id: str(raw.id) || uid(), key: str(raw.key), variations: normalizeVariations(raw.variations, []) };
+}
+
+/** Configs saved before multiple flags kept one `flagKey` and `variations` at the top level. */
+function normalizeFlags(raw: Record<string, unknown>): FlagConfig[] {
+  if (Array.isArray(raw.flags)) return raw.flags.map(normalizeFlag).filter((f): f is FlagConfig => f !== null);
+  const d = defaultFlag();
+  return [{ ...d, key: str(raw.flagKey), variations: normalizeVariations(raw.variations, d.variations) }];
+}
+
 function normalizeApi(raw: unknown): ApiSettings {
   if (!isObj(raw)) return { token: null, projectKey: '', environmentKey: '' };
   const t = raw.token;
@@ -113,14 +139,11 @@ export function normalizeConfig(raw: unknown): SimConfig {
   return {
     api: normalizeApi(raw.api),
     clientSideId: str(raw.clientSideId),
-    flagKey: str(raw.flagKey),
+    flags: normalizeFlags(raw),
     eventKeys: arr(raw.eventKeys).filter((k): k is string => typeof k === 'string'),
     contextKinds: Array.isArray(raw.contextKinds)
       ? raw.contextKinds.map(normalizeKind).filter((k): k is ContextKindConfig => k !== null)
       : d.contextKinds,
-    variations: Array.isArray(raw.variations)
-      ? raw.variations.map(normalizeVariation).filter((v): v is VariationConfig => v !== null)
-      : d.variations,
     intervalMs: Math.max(0, num(raw.intervalMs, d.intervalMs)),
     maxContexts:
       typeof raw.maxContexts === 'number' && raw.maxContexts > 0 ? raw.maxContexts : null,

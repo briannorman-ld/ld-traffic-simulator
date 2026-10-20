@@ -7,11 +7,12 @@ import { SearchSelect } from './SearchSelect';
 interface Props {
   api: ApiSettings;
   catalog: LdCatalog;
+  clientSideId: string;
   onChange: (api: ApiSettings) => void;
-  onEnvironmentPicked: (clientSideId: string) => void;
+  onClientSideId: (clientSideId: string) => void;
 }
 
-export function ApiSection({ api, catalog, onChange, onEnvironmentPicked }: Props) {
+export function ApiSection({ api, catalog, clientSideId, onChange, onClientSideId }: Props) {
   const [draftToken, setDraftToken] = useState('');
   const [replacing, setReplacing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -38,14 +39,14 @@ export function ApiSection({ api, catalog, onChange, onEnvironmentPicked }: Prop
   return (
     <section className="card">
       <div className="card-head">
-        <h2>LaunchDarkly API</h2>
-        <span className="muted">optional · fills in projects, flags, variations and metrics</span>
+        <h2>LaunchDarkly</h2>
+        <span className="muted">API token optional · fills in projects, flags, variations and metrics</span>
       </div>
 
       {showTokenInput ? (
         <div className="row">
           <label className="grow">
-            Access token
+            API access token (optional)
             <input
               type="password"
               autoComplete="off"
@@ -105,7 +106,7 @@ export function ApiSection({ api, catalog, onChange, onEnvironmentPicked }: Prop
                 onChange={(e) => {
                   const env = environments.data?.find((x) => x.key === e.target.value);
                   onChange({ ...api, environmentKey: e.target.value });
-                  if (env) onEnvironmentPicked(env.clientSideId);
+                  if (env) onClientSideId(env.clientSideId);
                 }}
               >
                 <option value="">{environments.loading ? 'Loading…' : 'Select an environment'}</option>
@@ -143,6 +144,16 @@ export function ApiSection({ api, catalog, onChange, onEnvironmentPicked }: Prop
           {loadError && <p className="error-text">{loadError}</p>}
         </>
       )}
+
+      <label>
+        Client-side ID
+        <input
+          spellCheck={false}
+          placeholder={token ? 'Filled in when you pick an environment' : 'e.g. 64f0c1…'}
+          value={clientSideId}
+          onChange={(e) => onClientSideId(e.target.value.trim())}
+        />
+      </label>
     </section>
   );
 }

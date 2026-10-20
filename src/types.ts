@@ -24,6 +24,12 @@ export interface VariationConfig {
   rates: Record<string, number>;
 }
 
+export interface FlagConfig {
+  id: string;
+  key: string;
+  variations: VariationConfig[];
+}
+
 /** AES-GCM ciphertext; the key lives non-extractable in IndexedDB (see secureStore.ts). */
 export interface EncryptedSecret {
   iv: string;
@@ -39,10 +45,10 @@ export interface ApiSettings {
 export interface SimConfig {
   api: ApiSettings;
   clientSideId: string;
-  flagKey: string;
+  /** Every visitor is evaluated on each of these. */
+  flags: FlagConfig[];
   eventKeys: string[];
   contextKinds: ContextKindConfig[];
-  variations: VariationConfig[];
   intervalMs: number;
   maxContexts: number | null;
 }
@@ -79,13 +85,18 @@ export interface LogEntry {
   visit?: VisitSummary;
 }
 
-export interface VisitSummary {
-  number: number;
+export interface VisitFlag {
+  flagKey: string;
   variationIndex: number | null;
   /** Configured label, or the served value when no label is set. */
   label: string;
-  /** False when the served variation isn't in the rates table. */
+  /** False when the served variation isn't in the flag's rates table. */
   configured: boolean;
+}
+
+export interface VisitSummary {
+  number: number;
+  flags: VisitFlag[];
   events: { key: string; converted: boolean }[];
 }
 
@@ -101,8 +112,8 @@ export interface RunStats {
   endedAt: number | null;
   contexts: number;
   errors: number;
-  /** Keyed by served variation index, or "fallback" when no index was returned. */
-  byVariation: Record<string, VariationStats>;
+  /** Flag key -> served variation index (or "fallback" when no index was returned) -> stats. */
+  byFlag: Record<string, Record<string, VariationStats>>;
 }
 
 export type RunStatus = 'idle' | 'starting' | 'running' | 'stopping';

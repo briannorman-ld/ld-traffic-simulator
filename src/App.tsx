@@ -1,14 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
 import { getFlag, variationLabel, type LdFlag } from './api/ldApi';
 import { ApiSection } from './components/ApiSection';
-import { ConnectionSection } from './components/ConnectionSection';
 import { ContextKindsEditor } from './components/ContextKindsEditor';
 import { EventKeysEditor } from './components/EventKeysEditor';
 import { EventLog } from './components/EventLog';
+import { FlagsSection } from './components/FlagsSection';
 import { RunControls } from './components/RunControls';
 import { SavedConfigsBar } from './components/SavedConfigsBar';
 import { StatsPanel } from './components/StatsPanel';
-import { VariationRatesTable } from './components/VariationRatesTable';
 import { useLdCatalog } from './hooks/useLdCatalog';
 import { usePersistentState } from './hooks/usePersistentState';
 import { useTheme } from './hooks/useTheme';
@@ -39,13 +38,14 @@ export default function App() {
   const active = saved.find((s) => s.id === activeId) ?? null;
   const modified = active
     ? JSON.stringify(active.config) !== JSON.stringify(draft)
-    : Boolean(draft.clientSideId || draft.flagKey || draft.eventKeys.length);
+    : Boolean(draft.clientSideId || draft.flags.some((f) => f.key) || draft.eventKeys.length);
   const errors = useMemo(() => validateConfig(draft), [draft]);
 
   const patch = (p: Partial<SimConfig>) => setDraft((d) => ({ ...d, ...p }));
   const confirmDiscard = () => !modified || window.confirm('Discard unsaved changes to the current configuration?');
 
-  async function applyFlag(flag: LdFlag) {
+  /** Fills a flag's variations from the API, keeping rates already entered for each index. */
+  async function applyFlag(id: string, flag: LdFlag) {
     let variations = flag.variations;
     if (variations.length === 0 && catalog.token && draft.api.projectKey) {
       try {
@@ -55,16 +55,19 @@ export default function App() {
       }
     }
     if (variations.length === 0) return;
-    setDraft((d) => {
-      if (d.flagKey.trim() !== flag.key) return d; // user kept typing
-      return {
-        ...d,
-        variations: variations.map((v, index) => {
-          const existing = d.variations.find((x) => x.index === index);
-          return { id: existing?.id ?? uid(), index, label: variationLabel(v), rates: existing?.rates ?? {} };
-        }),
-      };
-    });
+    setDraft((d) => ({
+      ...d,
+      flags: d.flags.map((f) => {
+        if (f.id !== id || f.key.trim() !== flag.key) return f; // removed, or the user kept typing
+        return {
+          ...f,
+          variations: variations.map((v, index) => {
+            const existing = f.variations.find((x) => x.index === index);
+            return { id: existing?.id ?? uid(), index, label: variationLabel(v), rates: existing?.rates ?? {} };
+          }),
+        };
+      }),
+    }));
   }
 
   function start() {
@@ -142,16 +145,9 @@ export default function App() {
           <ApiSection
             api={draft.api}
             catalog={catalog}
-            onChange={(api) => patch({ api })}
-            onEnvironmentPicked={(clientSideId) => patch({ clientSideId })}
-          />
-          <ConnectionSection
             clientSideId={draft.clientSideId}
-            flagKey={draft.flagKey}
-            flags={catalog.flags.data}
+            onChange={(api) => patch({ api })}
             onClientSideId={(clientSideId) => patch({ clientSideId })}
-            onFlagKey={(flagKey) => patch({ flagKey })}
-            onFlagPicked={(flag) => void applyFlag(flag)}
           />
           <EventKeysEditor
             eventKeys={draft.eventKeys}
@@ -161,20 +157,24 @@ export default function App() {
               setDraft((d) => ({
                 ...d,
                 eventKeys: d.eventKeys.filter((k) => k !== key),
-                variations: d.variations.map((v) => {
-                  const rates = { ...v.rates };
-                  delete rates[key];
-                  return { ...v, rates };
-                }),
+                flags: d.flags.map((f) => ({
+                  ...f,
+                  variations: f.variations.map((v) => {
+                    const rates = { ...v.rates };
+                    delete rates[key];
+                    return { ...v, rates };
+                  }),
+                })),
               }))
             }
           />
           <ContextKindsEditor kinds={draft.contextKinds} onChange={(contextKinds) => patch({ contextKinds })} />
-          <VariationRatesTable
-            variations={draft.variations}
+          <FlagsSection
+            flags={draft.flags}
+            catalogFlags={catalog.flags.data}
             eventKeys={draft.eventKeys}
-            apiFlagsAvailable={Boolean(catalog.flags.data?.length)}
-            onChange={(variations) => patch({ variations })}
+            onChange={(flags) => patch({ flags })}
+            onFlagPicked={(id, flag) => void applyFlag(id, flag)}
           />
         </fieldset>
 
@@ -190,7 +190,7 @@ export default function App() {
             onStart={start}
             onStop={() => runnerRef.current?.stop()}
           />
-          <StatsPanel stats={stats} variations={draft.variations} eventKeys={draft.eventKeys} running={running} />
+          <StatsPanel stats={stats} flags={draft.flags} eventKeys={draft.eventKeys} running={running} />
           <EventLog />
         </div>
       </main>

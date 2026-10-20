@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { defaultConfig, normalizeConfig, normalizeSaved } from './storage';
+import { defaultConfig, defaultFlag, normalizeConfig, normalizeSaved } from './storage';
 import type { SimConfig } from './types';
 import { validateConfig } from './validation';
 
 const valid = (): SimConfig => ({
   ...defaultConfig(),
   clientSideId: 'abc123',
-  flagKey: 'my-flag',
+  flags: [{ ...defaultFlag(), key: 'my-flag' }],
   eventKeys: ['buy'],
 });
 
@@ -24,21 +24,29 @@ describe('normalizeConfig', () => {
   it('drops malformed fields', () => {
     const c = normalizeConfig({
       eventKeys: ['ok', 5],
-      variations: [{ index: 1, rates: { a: 10, b: 'x' } }, null],
+      flags: [{ key: 'f', variations: [{ index: 1, rates: { a: 10, b: 'x' } }, null] }, 'junk'],
       maxContexts: -3,
       api: { token: { iv: 1 } },
     });
     expect(c.eventKeys).toEqual(['ok']);
-    expect(c.variations).toHaveLength(1);
-    expect(c.variations[0].rates).toEqual({ a: 10 });
+    expect(c.flags).toHaveLength(1);
+    expect(c.flags[0].variations).toHaveLength(1);
+    expect(c.flags[0].variations[0].rates).toEqual({ a: 10 });
     expect(c.maxContexts).toBeNull();
     expect(c.api.token).toBeNull();
+  });
+
+  it('migrates configs saved with a single top-level flag', () => {
+    const c = normalizeConfig({ flagKey: 'old-flag', variations: [{ index: 0, label: 'A', rates: { buy: 5 } }] });
+    expect(c.flags).toHaveLength(1);
+    expect(c.flags[0].key).toBe('old-flag');
+    expect(c.flags[0].variations).toMatchObject([{ index: 0, label: 'A', rates: { buy: 5 } }]);
   });
 
   it('normalizes saved config lists', () => {
     const saved = normalizeSaved([{ id: 's1', name: 'A', config: valid() }, 'junk']);
     expect(saved).toHaveLength(1);
-    expect(saved[0].config.flagKey).toBe('my-flag');
+    expect(saved[0].config.flags[0].key).toBe('my-flag');
   });
 });
 
@@ -69,7 +77,7 @@ describe('validateConfig', () => {
         ],
       },
     ];
-    c.variations = [
+    c.flags[0].variations = [
       { id: 'v1', index: 0, label: 'A', rates: { buy: 120 } },
       { id: 'v2', index: 0, label: 'B', rates: {} },
     ];
@@ -79,5 +87,19 @@ describe('validateConfig', () => {
     expect(errs).toMatch(/must be a number/);
     expect(errs).toMatch(/index 0 is listed twice/);
     expect(errs).toMatch(/must be 0–100/);
+  });
+
+  it('checks every flag and names it when there are several', () => {
+    const c = valid();
+    c.flags.push({ ...defaultFlag(), key: '' }, { ...defaultFlag(), key: 'my-flag' });
+    c.flags[2].variations[0].rates = { buy: -1 };
+    const errs = validateConfig(c);
+    expect(errs).toContain('Flag #2 needs a key.');
+    expect(errs).toContain('Flag "my-flag" is listed twice.');
+    expect(errs).toContain('Rate for "Control" on "my-flag" on "buy" must be 0–100.');
+  });
+
+  it('requires at least one flag', () => {
+    expect(validateConfig({ ...valid(), flags: [] })).toContain('Add at least one flag.');
   });
 });

@@ -8,7 +8,7 @@ export function validateConfig(c: SimConfig): string[] {
   const errors: string[] = [];
 
   if (!c.clientSideId.trim()) errors.push('Client-side ID is required.');
-  if (!c.flagKey.trim()) errors.push('Flag key is required.');
+  if (c.flags.length === 0) errors.push('Add at least one flag.');
   if (c.eventKeys.length === 0) errors.push('Add at least one event key.');
 
   if (c.contextKinds.length === 0) errors.push('Add at least one context kind.');
@@ -35,18 +35,28 @@ export function validateConfig(c: SimConfig): string[] {
     });
   });
 
-  if (c.variations.length === 0) errors.push('Add at least one variation.');
-  const indexes = new Set<number>();
-  c.variations.forEach((v) => {
-    const label = v.label || `index ${v.index}`;
-    if (!Number.isInteger(v.index) || v.index < 0)
-      errors.push(`Variation "${label}" needs a whole-number index of 0 or more.`);
-    if (indexes.has(v.index)) errors.push(`Variation index ${v.index} is listed twice.`);
-    indexes.add(v.index);
-    for (const key of c.eventKeys) {
-      const r = v.rates[key] ?? 0;
-      if (!(r >= 0 && r <= 100)) errors.push(`Rate for "${label}" on "${key}" must be 0–100.`);
-    }
+  const flagKeys = new Set<string>();
+  c.flags.forEach((f, i) => {
+    const key = f.key.trim();
+    // Only name the flag in messages when there's more than one.
+    const on = c.flags.length > 1 ? ` on ${key ? `"${key}"` : `flag #${i + 1}`}` : '';
+    if (!key) errors.push(c.flags.length > 1 ? `Flag #${i + 1} needs a key.` : 'Flag key is required.');
+    else if (flagKeys.has(key)) errors.push(`Flag "${key}" is listed twice.`);
+    flagKeys.add(key);
+
+    if (f.variations.length === 0) errors.push(`Add at least one variation${on}.`);
+    const indexes = new Set<number>();
+    f.variations.forEach((v) => {
+      const label = v.label || `index ${v.index}`;
+      if (!Number.isInteger(v.index) || v.index < 0)
+        errors.push(`Variation "${label}"${on} needs a whole-number index of 0 or more.`);
+      if (indexes.has(v.index)) errors.push(`Variation index ${v.index}${on} is listed twice.`);
+      indexes.add(v.index);
+      for (const eventKey of c.eventKeys) {
+        const r = v.rates[eventKey] ?? 0;
+        if (!(r >= 0 && r <= 100)) errors.push(`Rate for "${label}"${on} on "${eventKey}" must be 0–100.`);
+      }
+    });
   });
 
   if (!(Number.isFinite(c.intervalMs) && c.intervalMs >= 0))

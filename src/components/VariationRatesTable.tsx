@@ -1,4 +1,3 @@
-import { randomizeRates } from '../sim/randomRates';
 import type { VariationConfig } from '../types';
 import { uid } from '../uid';
 import { NumberField } from './NumberField';
@@ -6,37 +5,18 @@ import { NumberField } from './NumberField';
 interface Props {
   variations: VariationConfig[];
   eventKeys: string[];
-  /** True when flags are loaded from the API, so picking one auto-fills this table. */
-  apiFlagsAvailable: boolean;
   onChange: (variations: VariationConfig[]) => void;
 }
 
-export function VariationRatesTable({ variations, eventKeys, apiFlagsAvailable, onChange }: Props) {
+/** One flag's variations and per-event conversion rates. */
+export function VariationRatesTable({ variations, eventKeys, onChange }: Props) {
   const update = (id: string, patch: Partial<VariationConfig>) =>
     onChange(variations.map((v) => (v.id === id ? { ...v, ...patch } : v)));
   const setRate = (v: VariationConfig, key: string, rate: number | null) =>
     update(v.id, { rates: { ...v.rates, [key]: rate ?? 0 } });
 
   return (
-    <section className="card">
-      <div className="card-head">
-        <h2>Variations &amp; conversion rates</h2>
-        <span className="muted">% of visitors served each variation who fire each event</span>
-        <button
-          type="button"
-          className="link push-right"
-          disabled={eventKeys.length === 0 || variations.length === 0}
-          title="Random rates from 5–40% per event, with variations within 10% (relative) of each other"
-          onClick={() => onChange(randomizeRates(variations, eventKeys))}
-        >
-          Randomize rates
-        </button>
-      </div>
-      <p className="hint">
-        Index is the variation's position in the flag (0 = first).
-        {apiFlagsAvailable && ' Picking a flag above fills these in; rates you already entered are kept by index.'}
-      </p>
-
+    <>
       <div className="table-scroll">
         <table className="rates">
           <thead>
@@ -104,7 +84,6 @@ export function VariationRatesTable({ variations, eventKeys, apiFlagsAvailable, 
           </tbody>
         </table>
       </div>
-      {eventKeys.length === 0 && <p className="hint">Add an event key to set conversion rates.</p>}
       <div className="row">
         <button
           type="button"
@@ -116,6 +95,6 @@ export function VariationRatesTable({ variations, eventKeys, apiFlagsAvailable, 
           + Add variation
         </button>
       </div>
-    </section>
+    </>
   );
 }

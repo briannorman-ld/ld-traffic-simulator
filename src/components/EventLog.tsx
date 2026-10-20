@@ -1,7 +1,7 @@
 import { useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { logStore } from '../sim/logStore';
-import type { LogCategory, LogEntry, VisitSummary } from '../types';
+import type { LogCategory, LogEntry, VisitFlag, VisitSummary } from '../types';
 
 const CATEGORIES: { key: LogCategory; label: string }[] = [
   { key: 'run', label: 'Run' },
@@ -25,22 +25,31 @@ function time(t: number) {
 
 const VARIATION_COLORS = 6;
 
-function VisitLine({ visit }: { visit: VisitSummary }) {
-  const idx = visit.variationIndex;
+function VariationChip({ flag, showKey }: { flag: VisitFlag; showKey: boolean }) {
+  const idx = flag.variationIndex;
   const chipStyle = idx === null ? undefined : ({ '--vc': `var(--v${idx % VARIATION_COLORS})` } as CSSProperties);
+  return (
+    <span
+      className={`var-chip ${flag.configured ? '' : 'fallback'}`}
+      style={chipStyle}
+      title={`${flag.flagKey}: ${flag.configured ? `variation ${idx}` : 'served variation is not in the rates table'}`}
+    >
+      <span className="var-index">{idx ?? '?'}</span>
+      {showKey && <span className="var-flag">{flag.flagKey}</span>}
+      {flag.label}
+      {!flag.configured && ' · not configured'}
+    </span>
+  );
+}
+
+function VisitLine({ visit }: { visit: VisitSummary }) {
   return (
     <>
       <span className="log-visit">Visitor #{visit.number}</span>
       <span className="visit-line">
-        <span
-          className={`var-chip ${visit.configured ? '' : 'fallback'}`}
-          style={chipStyle}
-          title={visit.configured ? `Variation ${idx}` : 'Served variation is not in the rates table'}
-        >
-          <span className="var-index">{idx ?? '?'}</span>
-          {visit.label}
-          {!visit.configured && ' · not configured'}
-        </span>
+        {visit.flags.map((f) => (
+          <VariationChip key={f.flagKey} flag={f} showKey={visit.flags.length > 1} />
+        ))}
         {visit.events.length > 0 && <span className="visit-sep" aria-hidden />}
         {visit.events.map((e) => (
           <span key={e.key} className={`conv-chip ${e.converted ? 'hit' : ''}`} title={e.converted ? 'Converted' : 'Did not convert'}>

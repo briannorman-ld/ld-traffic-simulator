@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { RunStats, VariationConfig, VariationStats } from '../types';
+import type { FlagConfig, RunStats, VariationStats } from '../types';
 
 interface Props {
   stats: RunStats | null;
-  variations: VariationConfig[];
+  flags: FlagConfig[];
   eventKeys: string[];
   running: boolean;
 }
@@ -16,7 +16,12 @@ function formatElapsed(ms: number) {
   return m ? `${m}m ${s % 60}s` : `${s}s`;
 }
 
-export function StatsPanel({ stats, variations, eventKeys, running }: Props) {
+const sortBuckets = (byVariation: Record<string, VariationStats>): [string, VariationStats][] =>
+  Object.entries(byVariation).sort(([a], [b]) =>
+    a === 'fallback' ? 1 : b === 'fallback' ? -1 : Number(a) - Number(b),
+  );
+
+export function StatsPanel({ stats, flags, eventKeys, running }: Props) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!running) return;
@@ -30,19 +35,31 @@ export function StatsPanel({ stats, variations, eventKeys, running }: Props) {
         <div className="card-head">
           <h2>Live stats</h2>
         </div>
-        <p className="muted">Start a run to see exposures and conversions per variation.</p>
+        <p className="muted">Start a run to see exposures and conversions per flag variation.</p>
       </section>
     );
   }
 
   const elapsed = Math.max(0, (stats.endedAt ?? now) - stats.startedAt);
   const perSec = elapsed > 0 ? (stats.contexts / (elapsed / 1000)).toFixed(2) : '—';
-  const configured = new Map(variations.map((v) => [String(v.index), v]));
-  const rows: [string, VariationStats][] = Object.entries(stats.byVariation).sort(([a], [b]) =>
-    a === 'fallback' ? 1 : b === 'fallback' ? -1 : Number(a) - Number(b),
-  );
+  const tables = Object.entries(stats.byFlag).map(([flagKey, byVariation]) => {
+    const variations = flags.find((f) => f.key.trim() === flagKey)?.variations ?? [];
+    return {
+      flagKey,
+      rows: sortBuckets(byVariation),
+      configured: new Map(variations.map((v) => [String(v.index), v])),
+    };
+  });
   // Use the event keys the run started with, plus any that appear in results.
-  const keys = [...new Set([...eventKeys, ...rows.flatMap(([, s]) => Object.keys(s.conversions))])];
+  const keys = [
+    ...new Set([
+      ...eventKeys,
+      ...tables.flatMap((t) => t.rows.flatMap(([, s]) => Object.keys(s.conversions))),
+    ]),
+  ];
+  const unconfiguredServed = tables.some((t) =>
+    t.rows.some(([bucket, s]) => !t.configured.has(bucket) && s.exposures > 0),
+  );
 
   return (
     <section className="card">
@@ -53,50 +70,55 @@ export function StatsPanel({ stats, variations, eventKeys, running }: Props) {
           {stats.errors > 0 && <span className="error-text"> · {stats.errors} errors</span>}
         </span>
       </div>
-      <div className="table-scroll">
-        <table className="stats">
-          <thead>
-            <tr>
-              <th>Variation</th>
-              <th className="num">Exposures</th>
-              {keys.map((k) => (
-                <th key={k} className="num">
-                  <code>{k}</code>
-                  <div className="muted small">actual / target</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([bucket, s]) => {
-              const cfg = configured.get(bucket);
-              return (
-                <tr key={bucket} className={cfg ? '' : 'warn-row'}>
-                  <td>
-                    <div>
-                      {bucket === 'fallback' ? 'Fallback value' : `${bucket} · ${cfg?.label || 'not configured'}`}
-                    </div>
-                    {s.value !== undefined && <code className="muted small">{JSON.stringify(s.value)}</code>}
-                  </td>
-                  <td className="num">{s.exposures}</td>
-                  {keys.map((k) => {
-                    const conv = s.conversions[k] ?? 0;
-                    return (
-                      <td key={k} className="num">
-                        <div>
-                          {conv} <span className="muted">({pct(conv, s.exposures)})</span>
-                        </div>
-                        <div className="muted small">target {cfg ? `${cfg.rates[k] ?? 0}%` : '—'}</div>
-                      </td>
-                    );
-                  })}
+      {tables.map(({ flagKey, rows, configured }) => (
+        <div key={flagKey} className="stats-flag">
+          <code className="stats-flag-key">{flagKey}</code>
+          <div className="table-scroll">
+            <table className="stats">
+              <thead>
+                <tr>
+                  <th>Variation</th>
+                  <th className="num">Exposures</th>
+                  {keys.map((k) => (
+                    <th key={k} className="num">
+                      <code>{k}</code>
+                      <div className="muted small">actual / target</div>
+                    </th>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {rows.some(([b]) => !configured.has(b) && stats.byVariation[b].exposures > 0) && (
+              </thead>
+              <tbody>
+                {rows.map(([bucket, s]) => {
+                  const cfg = configured.get(bucket);
+                  return (
+                    <tr key={bucket} className={cfg ? '' : 'warn-row'}>
+                      <td>
+                        <div>
+                          {bucket === 'fallback' ? 'Fallback value' : `${bucket} · ${cfg?.label || 'not configured'}`}
+                        </div>
+                        {s.value !== undefined && <code className="muted small">{JSON.stringify(s.value)}</code>}
+                      </td>
+                      <td className="num">{s.exposures}</td>
+                      {keys.map((k) => {
+                        const conv = s.conversions[k] ?? 0;
+                        return (
+                          <td key={k} className="num">
+                            <div>
+                              {conv} <span className="muted">({pct(conv, s.exposures)})</span>
+                            </div>
+                            <div className="muted small">target {cfg ? `${cfg.rates[k] ?? 0}%` : '—'}</div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+      {unconfiguredServed && (
         <p className="hint">
           Highlighted rows were served but have no configured rate, so they never convert. Check the flag is on and
           its variation indexes match.

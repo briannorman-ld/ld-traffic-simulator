@@ -1,7 +1,7 @@
 # LD Experiment Traffic Simulator
 
-Browser-only tool that simulates visitors hitting a LaunchDarkly flag and converting on metric
-events at per-variation rates, to generate experiment data. No backend and no database: the form,
+Browser-only tool that simulates visitors hitting one or more LaunchDarkly flags and converting on
+metric events at per-variation rates, to generate experiment data. No backend and no database: the form,
 saved configurations and log filters live in `localStorage`.
 
 ```bash
@@ -17,8 +17,9 @@ For each visitor, one at a time, using the official browser SDK (`@launchdarkly/
 
 1. Build a context from the configured kinds. More than one kind becomes a single `kind: "multi"`
    context. Every kind gets a random key (plus optional prefix) and its static attributes.
-2. `identify` → `variationDetail(flagKey)`.
-3. For each event key, roll against the served variation's rate and `track()` on a hit.
+2. `identify` → `variationDetail(flagKey)` for every configured flag.
+3. For each event key, roll once per flag against the variation that flag served. The event is
+   `track()`ed once if any flag's roll hits.
 4. `flush()`, wait the configured ms, repeat until Stop or "stop after N".
 
 ## Things to know
@@ -28,6 +29,10 @@ For each visitor, one at a time, using the official browser SDK (`@launchdarkly/
 - **Anonymous kinds**: LaunchDarkly SDKs strip an anonymous context's attributes from feature
   (exposure) events. They're still sent on identify and custom events. If you need a kind's
   attributes on exposures (e.g. to slice results), leave that kind non-anonymous.
+- **Several flags**: each flag has its own variations and rates. A conversion counts toward every
+  flag the visitor was evaluated on, so when two flags share an event both see a higher actual rate
+  than their targets. To keep each flag on target, give each flag different events and leave the
+  others at 0%.
 - **Variation indexes** are the 0-based positions of the flag's variations. Served variations
   with no configured row show up highlighted in Live stats and never convert.
 - **API token (optional)**: lets you pick project, environment, flag (auto-fills variations) and
