@@ -370,6 +370,10 @@ button.icon.danger {
 .ss-option.selected {
   font-weight: 600;
 }
+.ss-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .ss-empty {
   padding: 6px 10px;
   color: var(--muted);

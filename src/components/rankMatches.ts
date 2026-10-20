@@ -2,6 +2,8 @@ export interface SearchOption {
   value: string;
   label: string;
   detail?: string;
+  /** Shown but can't be picked, e.g. a flag that's already added. */
+  disabled?: boolean;
 }
 
 /**

@@ -48,6 +48,7 @@ export function SearchSelect({ options, value, onChange, placeholder, disabled, 
   }
 
   function choose(item: Item) {
+    if (item.kind === 'option' && item.option.disabled) return;
     onChange(item.kind === 'option' ? item.option.value : item.text);
     setQuery(null);
     setOpen(false);
@@ -111,7 +112,10 @@ export function SearchSelect({ options, value, onChange, placeholder, disabled, 
                 data-index={i}
                 role="option"
                 aria-selected={isSelected}
-                className={`ss-option ${i === highlight ? 'active' : ''} ${isSelected ? 'selected' : ''} ${item.kind}`}
+                aria-disabled={item.kind === 'option' && item.option.disabled ? true : undefined}
+                className={`ss-option ${i === highlight ? 'active' : ''} ${isSelected ? 'selected' : ''} ${item.kind} ${
+                  item.kind === 'option' && item.option.disabled ? 'disabled' : ''
+                }`}
                 // mousedown + preventDefault so the input doesn't blur (and close) before the pick.
                 onMouseDown={(e) => {
                   e.preventDefault();

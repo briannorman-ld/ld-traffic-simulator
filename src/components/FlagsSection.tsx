@@ -42,6 +42,10 @@ export function FlagsSection({ flags, catalogFlags, eventKeys, onChange, onFlagP
 
       {flags.map((flag, i) => {
         const known = catalogFlags?.find((f) => f.key === flag.key);
+        // Keys used by the other cards; a flag can only be added once.
+        const taken = new Set(flags.filter((f) => f.id !== flag.id).map((f) => f.key.trim()).filter(Boolean));
+        // Only the later copy gets the message, so the first stays the one to keep.
+        const duplicate = !!flag.key.trim() && flags.slice(0, i).some((f) => f.key.trim() === flag.key.trim());
         return (
           <div key={flag.id} className="subcard">
             <div className="row">
@@ -50,7 +54,17 @@ export function FlagsSection({ flags, catalogFlags, eventKeys, onChange, onFlagP
                 {catalogFlags ? (
                   <SearchSelect
                     allowCustom
-                    options={catalogFlags.map((f) => ({ value: f.key, label: f.key, detail: f.name }))}
+                    options={[
+                      ...catalogFlags.map((f) =>
+                        taken.has(f.key)
+                          ? { value: f.key, label: f.key, detail: 'already added', disabled: true }
+                          : { value: f.key, label: f.key, detail: f.name },
+                      ),
+                      // Custom keys in other cards too, so they aren't offered as "Use …".
+                      ...[...taken]
+                        .filter((key) => !catalogFlags.some((f) => f.key === key))
+                        .map((key) => ({ value: key, label: key, detail: 'already added', disabled: true })),
+                    ]}
                     value={flag.key}
                     placeholder="Search flags by key or name"
                     emptyText="No flags in this project"
@@ -81,6 +95,7 @@ export function FlagsSection({ flags, catalogFlags, eventKeys, onChange, onFlagP
                 </button>
               )}
             </div>
+            {duplicate && <p className="error-text">This flag is already added above.</p>}
             <div className="row">
               {known && (
                 <span className="hint">
