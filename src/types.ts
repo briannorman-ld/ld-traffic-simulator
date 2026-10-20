@@ -75,6 +75,18 @@ export interface LogEntry {
   title: string;
   summary?: string;
   details?: unknown;
+  /** Structured data for visitor rows, so the log can render them as chips. */
+  visit?: VisitSummary;
+}
+
+export interface VisitSummary {
+  number: number;
+  variationIndex: number | null;
+  /** Configured label, or the served value when no label is set. */
+  label: string;
+  /** False when the served variation isn't in the rates table. */
+  configured: boolean;
+  events: { key: string; converted: boolean }[];
 }
 
 export interface VariationStats {

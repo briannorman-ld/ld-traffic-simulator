@@ -160,10 +160,14 @@ export class SimulationRunner {
         logStore.add({
           category: 'visitor',
           level: variation ? 'info' : 'warn',
-          title: `Visitor #${stats.contexts} ${describeContext(context)}`,
-          summary: `variation ${idx ?? 'fallback'} (${JSON.stringify(detail.value)})${variation ? '' : ' — not configured'} · ${
-            converted.length ? `converted: ${converted.join(', ')}` : 'no conversions'
-          }`,
+          title: `Visitor #${stats.contexts}`,
+          visit: {
+            number: stats.contexts,
+            variationIndex: idx,
+            label: variation?.label || (typeof detail.value === 'string' ? detail.value : JSON.stringify(detail.value)),
+            configured: !!variation,
+            events: cfg.eventKeys.map((key) => ({ key, converted: converted.includes(key) })),
+          },
           details: { context, evaluation: detail, converted },
         });
 

@@ -14,6 +14,12 @@
   --danger: #c62828;
   --danger-bg: #fde8e8;
   --code-bg: #f3f4f7;
+  --v0: #405bff;
+  --v1: #d9730d;
+  --v2: #9b4dca;
+  --v3: #0f8b8d;
+  --v4: #c2417a;
+  --v5: #6b7a90;
   --radius: 8px;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: light;
@@ -38,6 +44,12 @@
     --danger: #ff7b7b;
     --danger-bg: #3a1616;
     --code-bg: #12161c;
+    --v0: #8a9bff;
+    --v1: #f0a050;
+    --v2: #c48af0;
+    --v3: #4fc9c9;
+    --v4: #f080b0;
+    --v5: #a3afc0;
     color-scheme: dark;
   }
 }
@@ -57,6 +69,12 @@
   --danger: #ff7b7b;
   --danger-bg: #3a1616;
   --code-bg: #12161c;
+  --v0: #8a9bff;
+  --v1: #f0a050;
+  --v2: #c48af0;
+  --v3: #4fc9c9;
+  --v4: #f080b0;
+  --v5: #a3afc0;
   color-scheme: dark;
 }
 
@@ -579,6 +597,76 @@ details summary {
   font-size: 12px;
   padding-left: 2px;
   word-break: break-word;
+}
+.log-visit {
+  font-weight: 600;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.visit-line {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding-top: 2px;
+}
+.var-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px 1px 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vc);
+  background: color-mix(in srgb, var(--vc) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vc) 35%, transparent);
+}
+.var-chip .var-index {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: var(--vc);
+  color: var(--surface);
+}
+.var-chip.fallback {
+  --vc: var(--warn);
+}
+.visit-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--border);
+}
+.conv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  opacity: 0.6;
+  word-break: break-all;
+}
+.conv-chip.hit {
+  opacity: 1;
+  color: var(--ok);
+  background: var(--ok-bg);
+  border-color: transparent;
+  font-weight: 600;
+}
+.conv-chip .mark {
+  font-family: system-ui, sans-serif;
+  width: 10px;
+  text-align: center;
 }
 .log-body {
   padding: 0 10px 10px;

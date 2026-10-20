@@ -1,7 +1,7 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { logStore } from '../sim/logStore';
-import type { LogCategory, LogEntry } from '../types';
+import type { LogCategory, LogEntry, VisitSummary } from '../types';
 
 const CATEGORIES: { key: LogCategory; label: string }[] = [
   { key: 'run', label: 'Run' },
@@ -23,6 +23,38 @@ function time(t: number) {
   return `${d.toLocaleTimeString([], { hour12: false })}.${String(d.getMilliseconds()).padStart(3, '0')}`;
 }
 
+const VARIATION_COLORS = 6;
+
+function VisitLine({ visit }: { visit: VisitSummary }) {
+  const idx = visit.variationIndex;
+  const chipStyle = idx === null ? undefined : ({ '--vc': `var(--v${idx % VARIATION_COLORS})` } as CSSProperties);
+  return (
+    <>
+      <span className="log-visit">Visitor #{visit.number}</span>
+      <span className="visit-line">
+        <span
+          className={`var-chip ${visit.configured ? '' : 'fallback'}`}
+          style={chipStyle}
+          title={visit.configured ? `Variation ${idx}` : 'Served variation is not in the rates table'}
+        >
+          <span className="var-index">{idx ?? '?'}</span>
+          {visit.label}
+          {!visit.configured && ' · not configured'}
+        </span>
+        {visit.events.length > 0 && <span className="visit-sep" aria-hidden />}
+        {visit.events.map((e) => (
+          <span key={e.key} className={`conv-chip ${e.converted ? 'hit' : ''}`} title={e.converted ? 'Converted' : 'Did not convert'}>
+            <span className="mark" aria-hidden>
+              {e.converted ? '✓' : '·'}
+            </span>
+            {e.key}
+          </span>
+        ))}
+      </span>
+    </>
+  );
+}
+
 function Row({ entry }: { entry: LogEntry }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -32,8 +64,14 @@ function Row({ entry }: { entry: LogEntry }) {
       <button type="button" className="log-head" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className="log-time">{time(entry.time)}</span>
         <span className={`badge ${entry.category}`}>{entry.category}</span>
-        <span className="log-title">{entry.title}</span>
-        {entry.summary && <span className="log-summary">{entry.summary}</span>}
+        {entry.visit ? (
+          <VisitLine visit={entry.visit} />
+        ) : (
+          <>
+            <span className="log-title">{entry.title}</span>
+            {entry.summary && <span className="log-summary">{entry.summary}</span>}
+          </>
+        )}
       </button>
       {open && entry.details !== undefined && (
         <div className="log-body">
