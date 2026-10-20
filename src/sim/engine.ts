@@ -28,6 +28,7 @@ export class SimulationRunner {
   private readonly config: SimConfig;
   private readonly cb: RunnerCallbacks;
   private stopRequested = false;
+  private finished = false;
   private wake: (() => void) | null = null;
 
   constructor(config: SimConfig, cb: RunnerCallbacks) {
@@ -35,7 +36,9 @@ export class SimulationRunner {
     this.cb = cb;
   }
 
+  /** Safe to call any number of times, including after the run has ended. */
   stop() {
+    if (this.stopRequested || this.finished) return;
     this.stopRequested = true;
     this.wake?.();
     this.cb.onStatus('stopping');
@@ -208,6 +211,7 @@ export class SimulationRunner {
       stats.endedAt = Date.now();
       emit();
       logStore.add({ category: 'run', level: endLevel, title: endMessage, summary: `${stats.contexts} contexts sent` });
+      this.finished = true;
       this.cb.onStatus('idle', endLevel === 'error' ? endMessage : undefined);
     }
   }

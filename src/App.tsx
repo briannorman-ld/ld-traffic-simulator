@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getFlag, variationLabel, type LdFlag } from './api/ldApi';
 import { ApiSection } from './components/ApiSection';
 import { ContextKindsEditor } from './components/ContextKindsEditor';
@@ -33,6 +33,18 @@ export default function App() {
   const runnerRef = useRef<SimulationRunner | null>(null);
   const catalog = useLdCatalog(draft.api);
   const { theme, toggle: toggleTheme } = useTheme();
+
+  // Stop the run when the page goes away (refresh, close, navigating off) or App unmounts. The
+  // browser kills timers on unload anyway, but a page restored from the back/forward cache would
+  // otherwise pick the run back up.
+  useEffect(() => {
+    const stopRun = () => runnerRef.current?.stop();
+    window.addEventListener('pagehide', stopRun);
+    return () => {
+      window.removeEventListener('pagehide', stopRun);
+      stopRun();
+    };
+  }, []);
 
   const running = status !== 'idle';
   const active = saved.find((s) => s.id === activeId) ?? null;
@@ -71,7 +83,7 @@ export default function App() {
   }
 
   function start() {
-    if (errors.length) return;
+    if (errors.length || runnerRef.current) return; // never two clients at once
     setStatusMessage(null);
     const runner = new SimulationRunner(structuredClone(draft), {
       onStatus: (s, message) => {
